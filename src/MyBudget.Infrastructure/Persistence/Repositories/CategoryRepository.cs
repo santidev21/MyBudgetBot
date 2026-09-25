@@ -35,11 +35,15 @@ internal sealed class CategoryRepository(MyBudgetDbContext dbContext) : ICategor
     public Task<BudgetCategory?> FindByNameAsync(
         Guid userId, string name, CancellationToken cancellationToken = default)
     {
+        // Normalised exactly like the unique index uq_categories_user_name, which is
+        // (user_id, lower(btrim(name))). Lookup and constraint must agree, otherwise a name
+        // the database considers taken could be reported as free.
         var normalized = name.Trim().ToLowerInvariant();
 
         return dbContext.Categories
             .FirstOrDefaultAsync(
-                category => category.UserId == userId && category.Name.ToLower() == normalized,
+                category => category.UserId == userId
+                            && category.Name.Trim().ToLower() == normalized,
                 cancellationToken);
     }
 
