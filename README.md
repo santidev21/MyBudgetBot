@@ -32,13 +32,17 @@ later as data, not as a rewrite. Today there is exactly one of each.
 - PostgreSQL schema with CHECK, UNIQUE and composite FOREIGN KEY constraints.
 - Historical monthly budget model that cannot be rewritten retroactively.
 - User isolation enforced by the database, not only by application code.
-- EF Core migrations applied by a one-shot migrator container.
+- EF Core migrations applied by a one-shot migrator container, under a PostgreSQL
+  advisory lock so concurrent starts cannot race.
 - Structured JSON logging (Serilog), liveness/readiness/health endpoints.
+- Startup configuration validation: a bad time zone or language aborts boot with a clear
+  message instead of breaking the first user.
 - Least-privilege database roles (`mybudget_migrator` owns the schema; `mybudget_app`
   is DML-only).
-- Docker Compose deployment aligned with the `vps-gateway` standard.
-- 140 tests: domain units, application contract tests, architecture tests and
-  PostgreSQL integration tests.
+- Docker Compose deployment aligned with the `vps-gateway` standard, including the
+  versioned gateway site config that restricts health endpoints and the webhook.
+- 169 tests: domain units, application contract tests, architecture tests, migration
+  guardrails and PostgreSQL integration tests.
 
 **Planned**
 
@@ -190,8 +194,12 @@ Health endpoints:
 | Endpoint | Purpose | Exposure |
 |---|---|---|
 | `GET /health/live` | liveness, no dependencies | public |
-| `GET /health/ready` | PostgreSQL connectivity | gateway-restricted |
-| `GET /health` | full report with timings | gateway-restricted |
+| `GET /health/ready` | PostgreSQL connectivity | private ranges only |
+| `GET /health` | full report with timings | private ranges only |
+
+The production restriction is not left to the server: it is versioned in
+[`docs/gateway/mybudget.santidev21.tech.conf`](docs/gateway/mybudget.santidev21.tech.conf),
+which is copied into the gateway's `sites-enabled/` during deployment.
 
 ### Tests
 
@@ -250,7 +258,9 @@ chmod +x scripts/deploy.sh
 ```
 
 The gateway must then be pointed at `mybudget:8080` for
-`mybudget.santidev21.tech`, following `vps-gateway/docs/STANDARD.md`. Subsequent
+`mybudget.santidev21.tech` by copying
+[`docs/gateway/mybudget.santidev21.tech.conf`](docs/gateway/mybudget.santidev21.tech.conf)
+into `vps-gateway/sites-enabled/`, following `vps-gateway/docs/STANDARD.md`. Subsequent
 deployments happen automatically on push to `main`.
 
 ## Backup strategy

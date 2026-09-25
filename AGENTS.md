@@ -87,18 +87,29 @@ Database and application ports are never published in production.
   client-assigned GUID makes an added child look like an existing row, and `SaveChanges`
   then fails as a concurrency conflict. `CategoryAlias` and `MonthlyBudgetCategory`
   therefore use `Entity(keyGeneratedByStore: true)` and `ValueGeneratedOnAdd()`.
+- **Consequence: an unsaved child has `Guid.Empty` as its key.** Never identify a child by
+  its id before it is persisted. `BudgetCategory.RemoveAlias` takes the *instance* for
+  exactly this reason; `MonthlyBudget.RemoveAllocation` takes a *category* id, which is
+  safe because category keys are client-assigned. `FindAlias(Guid.Empty)` returns null
+  rather than matching the first alias.
 - **Do not make the `NO ACTION` composite FKs `DEFERRABLE`.** With EF's single-command
   autocommit saves the violation surfaces at implicit commit and EF reports a concurrency
   failure instead of a named foreign key violation.
+- **Removing a child from a tracked aggregate relies on EF's orphan deletion**, which is a
+  convention derived from the non-nullable foreign key, not something the domain states.
+  `OrphanRemovalTests` pins it.
 - **`external: false` in `docker-compose.local.yml` is required.** Compose merges network
   definitions, so the base file's `external: true` otherwise survives and local startup
   fails.
+- **Both `app` and `migrator` must keep `image: mybudget-app`.** Without the shared image
+  name Compose builds the same Dockerfile twice under two tags.
 - **The runtime image is Debian, not Alpine**, because `es-CO` formatting needs ICU and
   `TimeZoneInfo` needs tzdata.
 - Migration files are marked as generated code in `.editorconfig`; do not reformat them.
 
 ## Status
 
-Phase 0–1 complete (domain, schema, persistence, Docker, CI, tests). Next: Phase 2
-(money parser, formatter, date parser, localization catalog). The Telegram interface does
-not exist yet.
+Phase 0–1 complete (domain, schema, persistence, Docker, CI, tests), plus a hardening pass
+that fixed a child-identity footgun, added startup configuration validation and put
+migrations under an advisory lock. Next: Phase 2 (money parser, formatter, date parser,
+localization catalog). The Telegram interface does not exist yet.

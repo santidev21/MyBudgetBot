@@ -473,7 +473,12 @@ Telegram ──HTTPS──▶ vps-gateway (nginx :443)
   call `api.telegram.org`.
 - `mybudget-internal-net`: internal, database only.
 - `mybudget-migrator`: one-shot, runs `--migrate`, then exits. The application never migrates
-  on start.
+  on start. Migrations run under a PostgreSQL session advisory lock, so two migrator
+  containers started at the same time cannot race on the schema; the second finds it
+  already current.
+- Both `app` and `migrator` share the `mybudget-app` image, so Compose builds once.
+- Options validation runs at startup (`ValidateOnStart`), so a bad `Localization:DefaultTimeZone`
+  or `DefaultLanguage` aborts boot with a clear message instead of breaking the first user.
 - The database is provisioned with two least-privilege roles by
   `docker/postgres/init/01-create-users.sh`, which runs once on an empty volume. Changing a
   password there later has no effect; rotate with `ALTER ROLE`.
@@ -483,8 +488,11 @@ Telegram ──HTTPS──▶ vps-gateway (nginx :443)
   `TimeZoneInfo` needs tzdata.
 
 Gateway steps for a new deployment: create the DNS record, add `mybudget-net` to the gateway
-compose, issue the certificate with certbot, add the site config with the resolver and
-variable `proxy_pass` pattern, then `nginx -t` and reload.
+compose, issue the certificate with certbot, copy
+`docs/gateway/mybudget.santidev21.tech.conf` into `sites-enabled/`, then `nginx -t` and
+reload. That config is versioned in this repository because it decides this service's
+external exposure: only `/health/live` is public, `/health/ready` and `/health` are
+restricted to private ranges, and the webhook is POST-only, unlogged and rate limited.
 
 Observability is deliberately limited to structured JSON logs plus health endpoints.
 OpenTelemetry and Prometheus are out of scope for one VPS and one user.
@@ -511,8 +519,9 @@ Rules:
 
 Coverage today: constraints, cross-user integrity (all four composite FKs), user isolation
 per repository, historical budget immutability, cascade and non-deletion behaviour, user
-erasure, timestamp maintenance, allocation persistence, architecture and repository
-contract tests. 140 tests, all green.
+erasure, orphan removal, migration guardrails (the raw-SQL constraints cannot silently
+disappear), timestamp maintenance, allocation persistence, localization option validation,
+architecture and repository contract tests. 169 tests, all green.
 
 ## 17. Backup strategy
 
