@@ -1,0 +1,50 @@
+using Microsoft.EntityFrameworkCore;
+using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Domain.Categories;
+using MyBudget.Infrastructure.Persistence;
+
+namespace MyBudget.Infrastructure.Persistence.Repositories;
+
+internal sealed class CategoryRepository(MyBudgetDbContext dbContext) : ICategoryRepository
+{
+    public async Task<IReadOnlyList<BudgetCategory>> ListAsync(
+        Guid userId, bool includeInactive, CancellationToken cancellationToken = default)
+    {
+        IQueryable<BudgetCategory> query = dbContext.Categories
+            .AsNoTracking()
+            .Include(category => category.Aliases)
+            .Where(category => category.UserId == userId);
+
+        if (!includeInactive)
+        {
+            query = query.Where(category => category.IsActive);
+        }
+
+        return await query
+            .OrderBy(category => category.Name)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<BudgetCategory?> FindByIdAsync(
+        Guid userId, Guid categoryId, CancellationToken cancellationToken = default)
+        => dbContext.Categories
+            .Include(category => category.Aliases)
+            .FirstOrDefaultAsync(
+                category => category.UserId == userId && category.Id == categoryId, cancellationToken);
+
+    public Task<BudgetCategory?> FindByNameAsync(
+        Guid userId, string name, CancellationToken cancellationToken = default)
+    {
+        var normalized = name.Trim().ToLowerInvariant();
+
+        return dbContext.Categories
+            .FirstOrDefaultAsync(
+                category => category.UserId == userId && category.Name.ToLower() == normalized,
+                cancellationToken);
+    }
+
+    public Task<bool> AnyByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+        => dbContext.Categories.AnyAsync(category => category.UserId == userId, cancellationToken);
+
+    public void Add(BudgetCategory category) => dbContext.Categories.Add(category);
+}
