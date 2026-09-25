@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Telegram presentation layer: update dispatch, conversations and message rendering.
+    Business rules do not live here; it calls application use cases and formats results.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Telegram.Bot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyBudget.Application\MyBudget.Application.csproj" />
+    <ProjectReference Include="..\MyBudget.Domain\MyBudget.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

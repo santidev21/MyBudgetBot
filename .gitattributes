@@ -4,6 +4,7 @@
 *.csproj text
 *.sln   text eol=crlf
 *.props text
+*.json  text eol=lf
 *.sh    text eol=lf
 *.yml   text eol=lf
 *.md    text

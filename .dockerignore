@@ -1,0 +1,23 @@
+# Never ship secrets, history, tests or local build output into the image.
+.git
+.github
+.env
+.env.*
+*.pem
+*.key
+
+**/bin
+**/obj
+**/TestResults
+
+tests
+docs
+scripts
+docker
+
+README.md
+AGENTS.md
+.dockerignore
+.gitignore
+.editorconfig
+docker-compose*.yml
