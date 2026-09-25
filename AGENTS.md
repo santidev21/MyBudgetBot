@@ -1,0 +1,104 @@
+# MyBudget-bot — Working Context
+
+Single source of truth for how this repository is built and changed. Keep it in sync when
+architecture, scripts, conventions or status change. Details live in
+[`docs/TECHNICAL-DESIGN.md`](docs/TECHNICAL-DESIGN.md).
+
+## What this project is
+
+A personal budgeting Telegram bot for a Colombian user: fast expense entry, reliable
+reporting. Money is whole COP pesos (`long` / `bigint`), user-facing text is Spanish,
+everything technical is English. Deployed as a modular monolith on the `santidev21` VPS
+behind `vps-gateway`.
+
+## Non-negotiable rules
+
+1. **Language separation.** Code, identifiers, namespaces, table and column names, config
+   keys, log event names, test names, comments, docs and commit messages are **English**.
+   Only user-facing strings are Spanish, and they live in resources — never inline in
+   business logic, never in the domain or application layers.
+2. **Money is exact.** `long` only. Never `float`, `double`, `decimal` persisted, or
+   formatted strings. Whole pesos: `35.000 COP` is `35000`.
+3. **Expense dates are calendar dates.** `ExpenseDate` is `DateOnly` / `date`, resolved in
+   the user's time zone. `CreatedAt` / `UpdatedAt` are UTC instants (`timestamptz`).
+   Getting this wrong moves expenses into the wrong month.
+4. **Ownership is enforced twice.** Every scoped repository query takes `userId` first (a
+   missing scope is a compile error), and composite foreign keys enforce it in PostgreSQL.
+5. **History is indestructible.** A category with expenses or a funded allocation cannot be
+   deleted. Deactivate instead. User erasure goes through `IUserDataEraser`.
+6. **No business logic in Telegram handlers.** Handlers parse, call an application use case,
+   format, and send.
+7. **No AI for categorization.** Deterministic matching only.
+8. **Never edit an applied migration.** Add a new one.
+
+## Repository layout
+
+```
+MyBudget.sln
+Directory.Build.props          # shared build settings
+Directory.Packages.props       # central package versions (single source of truth)
+src/
+  MyBudget.Domain/             # entities, value objects, pure math. No dependencies.
+  MyBudget.Application/        # use cases + persistence abstractions. Domain only.
+  MyBudget.Infrastructure/     # EF Core, Npgsql, migrations, repositories.
+  MyBudget.Telegram/           # presentation: dispatch, conversations, rendering.
+  MyBudget.Api/                # composition root, health, Serilog, --migrate.
+tests/                         # Domain, Application, Infrastructure, Telegram, Architecture
+docker/app/Dockerfile
+docker/postgres/init/          # least-privilege role provisioning (runs once)
+scripts/deploy.sh
+docs/TECHNICAL-DESIGN.md
+```
+
+## Commands
+
+| Task | Command |
+|---|---|
+| Build | `dotnet build MyBudget.sln` |
+| All tests | `dotnet test MyBudget.sln` |
+| Unit tests only (no Docker) | `dotnet test tests/MyBudget.Domain.Tests` |
+| Format check | `dotnet format MyBudget.sln --verify-no-changes` |
+| Add a migration | `dotnet dotnet-ef migrations add <Name> --project src/MyBudget.Infrastructure --startup-project src/MyBudget.Infrastructure` |
+| Apply migrations | `dotnet dotnet-ef database update --project src/MyBudget.Infrastructure --startup-project src/MyBudget.Infrastructure` |
+| Local stack | `docker compose -f docker-compose.yml -f docker-compose.local.yml up --build` |
+| Local API port | `http://localhost:8091` (8080 and 8090 are used by other projects) |
+| Deploy on VPS | `cd /opt/mybudget && ./scripts/deploy.sh deploy` |
+
+Addresses: containers `mybudget` / `mybudget-db` / `mybudget-migrator`; networks
+`mybudget-net` (external, gateway) and `mybudget-internal-net` (internal, database only).
+Database and application ports are never published in production.
+
+## Testing conventions
+
+- Integration tests use **Testcontainers + real PostgreSQL**. Never the EF in-memory
+  provider: it cannot enforce CHECK, UNIQUE or FOREIGN KEY constraints, which is exactly
+  what those tests verify.
+- The shared `DatabaseFixture` migrates once and Respawn resets between tests.
+- Raw SQL is used deliberately when a test must produce a state the domain forbids
+  (empty names, negative amounts, cross-user references) — those tests prove the database
+  refuses it even when application code is bypassed.
+- Architecture tests fail the build if the layering is violated.
+- Test method names read as sentences; no `Method_Should_Do_Thing` noise.
+
+## Gotchas discovered the hard way
+
+- **Aggregate-created records must have store-generated keys.** EF Core decides whether an
+  entity found in a navigation is new or existing by checking whether its key is set. A
+  client-assigned GUID makes an added child look like an existing row, and `SaveChanges`
+  then fails as a concurrency conflict. `CategoryAlias` and `MonthlyBudgetCategory`
+  therefore use `Entity(keyGeneratedByStore: true)` and `ValueGeneratedOnAdd()`.
+- **Do not make the `NO ACTION` composite FKs `DEFERRABLE`.** With EF's single-command
+  autocommit saves the violation surfaces at implicit commit and EF reports a concurrency
+  failure instead of a named foreign key violation.
+- **`external: false` in `docker-compose.local.yml` is required.** Compose merges network
+  definitions, so the base file's `external: true` otherwise survives and local startup
+  fails.
+- **The runtime image is Debian, not Alpine**, because `es-CO` formatting needs ICU and
+  `TimeZoneInfo` needs tzdata.
+- Migration files are marked as generated code in `.editorconfig`; do not reformat them.
+
+## Status
+
+Phase 0–1 complete (domain, schema, persistence, Docker, CI, tests). Next: Phase 2
+(money parser, formatter, date parser, localization catalog). The Telegram interface does
+not exist yet.
