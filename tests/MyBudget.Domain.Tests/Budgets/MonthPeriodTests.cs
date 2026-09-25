@@ -88,4 +88,30 @@ public sealed class MonthPeriodTests
     {
         new MonthPeriod(2026, 9).ToString().Should().Be("2026-09");
     }
+
+    [Fact]
+    public void Previous_is_not_defined_before_the_supported_range()
+    {
+        // Navigation is bounded by the interface, so walking off the edge of the supported
+        // range is a programming error and must be loud rather than silently clamped.
+        FluentActions.Invoking(() => new MonthPeriod(MonthPeriod.MinYear, 1).Previous)
+            .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void Next_is_not_defined_after_the_supported_range()
+    {
+        FluentActions.Invoking(() => new MonthPeriod(MonthPeriod.MaxYear, 12).Next)
+            .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void The_first_and_last_supported_periods_are_valid()
+    {
+        var first = new MonthPeriod(MonthPeriod.MinYear, 1);
+        var last = new MonthPeriod(MonthPeriod.MaxYear, 12);
+
+        first.FirstDay.Should().Be(new DateOnly(MonthPeriod.MinYear, 1, 1));
+        last.LastDay.Should().Be(new DateOnly(MonthPeriod.MaxYear, 12, 31));
+    }
 }
