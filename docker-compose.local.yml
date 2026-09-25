@@ -1,0 +1,32 @@
+# Local development overlay.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+#
+# Differences from production: local bridge networks instead of the gateway's shared
+# network, ASPNETCORE_ENVIRONMENT=Development, and loopback-only published ports.
+#
+# 'external: false' is required, not cosmetic: Compose merges network definitions, so
+# without it the base file's 'external: true' survives and startup fails because the
+# gateway network does not exist on a developer machine.
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  app:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    # 8080 is commonly taken by other projects on this machine.
+    ports:
+      - "127.0.0.1:8091:8080"
+
+networks:
+  mybudget-net:
+    name: mybudget-net
+    driver: bridge
+    external: false
+  mybudget-internal-net:
+    name: mybudget-internal-net
+    driver: bridge
+    external: false

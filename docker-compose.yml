@@ -1,0 +1,118 @@
+name: mybudget
+
+# Production topology, aligned with the vps-gateway standard:
+#   * mybudget-net          external, shared with the gateway; carries ingress and the
+#                           egress needed to call api.telegram.org
+#   * mybudget-internal-net internal, database only, never shared with the gateway
+# The database is never reachable from outside mybudget-internal-net, and no port is
+# published to the host: only the gateway is public.
+
+services:
+  db:
+    container_name: mybudget-db
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Consumed by docker/postgres/init/01-create-users.sh on first initialisation.
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      DB_MIGRATOR_USER: ${DB_MIGRATOR_USER}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD}
+    volumes:
+      - mybudget_pg_data:/var/lib/postgresql/data
+      # Backups live on a separate volume: losing the data volume must not lose them too.
+      - mybudget_pg_backups:/backups
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - mybudget-internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+
+  # One-shot: applies EF Core migrations, then exits. The application itself never
+  # migrates on start, so a failed migration fails the deployment instead of leaving a
+  # half-booted service.
+  migrator:
+    container_name: mybudget-migrator
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${DB_MIGRATOR_USER};Password=${DB_MIGRATOR_PASSWORD}
+    entrypoint: ["dotnet", "MyBudget.Api.dll", "--migrate"]
+    networks:
+      - mybudget-internal-net
+    restart: "no"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+  app:
+    container_name: mybudget
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Runtime role: DML only, no DDL.
+      ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${DB_APP_USER};Password=${DB_APP_PASSWORD}
+      Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
+      Telegram__WebhookSecret: ${TELEGRAM_WEBHOOK_SECRET:-}
+      Telegram__WebhookPath: ${TELEGRAM_WEBHOOK_PATH:-}
+      Telegram__AllowedUserIds: ${ALLOWED_TELEGRAM_USER_IDS:-}
+      Telegram__StaleUpdateMinutes: ${TELEGRAM_STALE_UPDATE_MINUTES:-15}
+      Localization__DefaultLanguage: ${DEFAULT_LANGUAGE:-es}
+      Localization__DefaultTimeZone: ${DEFAULT_TIME_ZONE:-America/Bogota}
+    # No ports published: the gateway reaches this container over mybudget-net.
+    networks:
+      - mybudget-net
+      - mybudget-internal-net
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:8080/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+networks:
+  mybudget-net:
+    name: mybudget-net
+    external: true
+  mybudget-internal-net:
+    name: mybudget-internal-net
+    driver: bridge
+    internal: true
+
+volumes:
+  mybudget_pg_data:
+    name: mybudget_pg_data
+  mybudget_pg_backups:
+    name: mybudget_pg_backups

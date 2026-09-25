@@ -1,0 +1,197 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore MyBudget.sln
+
+      - name: Build
+        run: dotnet build MyBudget.sln --no-restore --configuration Release
+
+      # Integration tests start a real PostgreSQL container via Testcontainers.
+      # Docker is available on the GitHub-hosted runner, which is exactly why the
+      # tests use a real database instead of the EF in-memory provider.
+      - name: Test
+        run: >
+          dotnet test MyBudget.sln
+          --no-build
+          --configuration Release
+          --logger "trx;LogFileName=results.trx"
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/TestResults/*.trx"
+          retention-days: 7
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: "**/TestResults/**/coverage.cobertura.xml"
+          retention-days: 7
+
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore MyBudget.sln
+      - run: dotnet format MyBudget.sln --verify-no-changes --no-restore
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Known vulnerable packages
+        run: dotnet list MyBudget.sln package --vulnerable --include-transitive
+
+      - name: .env must not be tracked
+        run: |
+          if git ls-files --error-unmatch .env 2>/dev/null; then
+            echo "ERROR: .env is tracked by git."
+            exit 1
+          fi
+          echo ".env is not tracked."
+
+      - name: Ignore files must exclude secrets
+        run: |
+          grep -q '^\.env$' .gitignore || { echo ".gitignore does not exclude .env"; exit 1; }
+          grep -q '^\.env$' .dockerignore || { echo ".dockerignore does not exclude .env"; exit 1; }
+          echo "Secret files are excluded."
+
+      - name: Scan for committed credentials
+        run: |
+          if grep -rniE --include='*.cs' --include='*.json' --include='*.yml' --include='*.yaml' \
+               --exclude-dir=bin --exclude-dir=obj --exclude-dir=.git \
+               '(bot_token|botToken|password|secret)\s*[:=]\s*"[A-Za-z0-9_.:/+-]{16,}"' . ; then
+            echo "Potential credential committed. Review the matches above."
+            exit 1
+          fi
+          echo "No committed credentials found."
+
+  docker:
+    name: Docker Build & Scan
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/app/Dockerfile
+          push: false
+          load: true
+          tags: mybudget-app:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: mybudget-app:test
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: 1
+
+  compose-validate:
+    name: Compose Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the shared network the gateway owns
+        run: docker network create mybudget-net || true
+
+      - name: Validate production compose
+        run: docker compose config --quiet
+
+      - name: Validate local compose
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.local.yml config --quiet
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: [build-and-test, formatting, security, docker, compose-validate]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/deploy_key 2>/dev/null \
+             && grep -q "BEGIN.*PRIVATE KEY" ~/.ssh/deploy_key; then
+            echo "Using base64-decoded deploy key"
+          else
+            printf "%s\n" "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+            if grep -q '\\n' ~/.ssh/deploy_key; then
+              printf "%b" "$(cat ~/.ssh/deploy_key)" > ~/.ssh/deploy_key.tmp && mv ~/.ssh/deploy_key.tmp ~/.ssh/deploy_key
+            fi
+          fi
+          sed -i 's/\r//g' ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keygen -l -f ~/.ssh/deploy_key >/dev/null || { echo "Invalid SSH deploy key"; exit 1; }
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Deploy
+        env:
+          SSH_KEY: ~/.ssh/deploy_key
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          ssh -i "$SSH_KEY" -o StrictHostKeyChecking=yes "$VPS_USER@$VPS_HOST" \
+            'cd /opt/mybudget && \
+             docker rm -f mybudget-migrator >/dev/null 2>&1 || true; \
+             chmod +x ./scripts/deploy.sh && ./scripts/deploy.sh deploy'
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
+      - name: Summary
+        if: success()
+        run: echo "Deployed commit ${{ github.sha }}."
