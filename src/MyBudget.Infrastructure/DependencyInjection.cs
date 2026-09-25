@@ -37,6 +37,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IDatabaseMigrator, DatabaseMigrator>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserDataEraser, UserDataEraser>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();

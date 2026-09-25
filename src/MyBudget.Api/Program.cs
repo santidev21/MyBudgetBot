@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using MyBudget.Application;
 using MyBudget.Infrastructure;
 using MyBudget.Infrastructure.Persistence;
 using Serilog;
@@ -29,6 +29,7 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 
 var connectionString = builder.Configuration.GetConnectionString("Database");
 
+builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddProblemDetails();
 
@@ -43,9 +44,9 @@ var app = builder.Build();
 if (args.Contains("--migrate", StringComparer.Ordinal))
 {
     using var migrationScope = app.Services.CreateScope();
-    var dbContext = migrationScope.ServiceProvider.GetRequiredService<MyBudgetDbContext>();
+    var migrator = migrationScope.ServiceProvider.GetRequiredService<IDatabaseMigrator>();
 
-    await dbContext.Database.MigrateAsync();
+    await migrator.MigrateAsync();
 
     Log.Information("Database migrations applied successfully.");
     return;
