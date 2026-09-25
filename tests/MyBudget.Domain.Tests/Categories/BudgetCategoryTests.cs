@@ -78,8 +78,33 @@ public sealed class BudgetCategoryTests
         alias.CategoryId.Should().Be(category.Id);
         alias.UserId.Should().Be(category.UserId);
 
-        category.RemoveAlias(alias.Id);
+        category.RemoveAlias(alias).Should().BeTrue();
         category.Aliases.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void An_alias_belonging_to_another_category_cannot_be_removed()
+    {
+        var groceries = new BudgetCategory(Guid.NewGuid(), "Mercado");
+        var transport = new BudgetCategory(Guid.NewGuid(), "Transporte");
+        var foreignAlias = transport.AddAlias("Gasolina", "gasolina");
+
+        groceries.RemoveAlias(foreignAlias).Should().BeFalse();
+        transport.Aliases.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void An_alias_created_in_memory_has_no_identifier_until_it_is_persisted()
+    {
+        // Child record keys are assigned by the persistence layer (see Entity), so an alias
+        // that has not been saved cannot be found by id. This is why removal takes the
+        // instance instead of an id.
+        var category = new BudgetCategory(Guid.NewGuid(), "Mercado");
+        var alias = category.AddAlias("Verduras", "verduras");
+
+        alias.Id.Should().Be(Guid.Empty);
+        category.FindAlias(Guid.Empty).Should().BeNull();
+        category.FindAlias(alias.Id).Should().BeNull();
     }
 
     [Fact]
@@ -90,16 +115,5 @@ public sealed class BudgetCategoryTests
 
         FluentActions.Invoking(() => category.AddAlias("VERDURAS", "verduras"))
             .Should().Throw<InvalidOperationException>();
-    }
-
-    [Fact]
-    public void Removing_an_unknown_alias_is_a_no_op()
-    {
-        var category = new BudgetCategory(Guid.NewGuid(), "Mercado");
-        category.AddAlias("Verduras", "verduras");
-
-        category.RemoveAlias(Guid.NewGuid());
-
-        category.Aliases.Should().ContainSingle();
     }
 }

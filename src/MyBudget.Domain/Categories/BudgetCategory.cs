@@ -117,12 +117,25 @@ public sealed class BudgetCategory : Entity
         return created;
     }
 
-    public void RemoveAlias(Guid aliasId)
+    /// <summary>
+    /// Finds an alias by its persisted identifier, for callers that hold an id from the
+    /// database (for example a Telegram callback). Returns <c>null</c> for
+    /// <see cref="Guid.Empty"/>: an alias created in memory has no identifier until the
+    /// persistence layer assigns one, so an empty id must never match.
+    /// </summary>
+    public CategoryAlias? FindAlias(Guid aliasId) =>
+        aliasId == Guid.Empty
+            ? null
+            : _aliases.FirstOrDefault(alias => alias.Id == aliasId);
+
+    /// <summary>
+    /// Removes the given alias. Takes the instance rather than an id on purpose: alias
+    /// identifiers are assigned on insert, so identifying an alias by id would silently do
+    /// nothing for an alias that has not been saved yet.
+    /// </summary>
+    public bool RemoveAlias(CategoryAlias alias)
     {
-        var existing = _aliases.FirstOrDefault(a => a.Id == aliasId);
-        if (existing is not null)
-        {
-            _aliases.Remove(existing);
-        }
+        ArgumentNullException.ThrowIfNull(alias);
+        return _aliases.Remove(alias);
     }
 }
