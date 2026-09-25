@@ -106,10 +106,21 @@ Database and application ports are never published in production.
 - **The runtime image is Debian, not Alpine**, because `es-CO` formatting needs ICU and
   `TimeZoneInfo` needs tzdata.
 - Migration files are marked as generated code in `.editorconfig`; do not reformat them.
+- **XML comments must not contain `--`.** It is invalid XML, and it silently broke the
+  `.runsettings` coverage file and the API project file. Write `the migration entrypoint`,
+  not `the --migrate entrypoint`.
+- **Spanish is the neutral resource set**, declared with `NeutralResourcesLanguage` in
+  `MyBudget.Application.csproj`. Adding a language means adding
+  `Resources/Messages.<culture>.resx` and listing the culture in
+  `Localization:SupportedLanguages`. Never name the Spanish file `Messages.es.resx`: the
+  neutral file is what removes the satellite-assembly failure mode.
+- **Parsing stages are `internal` but tested directly** through `InternalsVisibleTo`. A
+  defect in separator handling must be findable without driving the whole pipeline.
 
 ## Status
 
-Phase 0–1 complete (domain, schema, persistence, Docker, CI, tests), plus a hardening pass
-that fixed a child-identity footgun, added startup configuration validation and put
-migrations under an advisory lock. Next: Phase 2 (money parser, formatter, date parser,
-localization catalog). The Telegram interface does not exist yet.
+Phase 0–2 complete: domain, schema, persistence, Docker, CI, money parsing and formatting,
+date parsing, compact expense extraction and the message catalog. Money code is at 97,5 %
+line coverage with property-based tests. 405 tests, all green. Next: Phase 3 (Telegram
+plumbing: webhook, idempotency, identity, conversation state, onboarding). The Telegram
+interface does not exist yet.

@@ -26,14 +26,24 @@ later as data, not as a rewrite. Today there is exactly one of each.
 
 ## Features
 
-**Implemented (Phase 0–1)**
+**Implemented (Phase 0–2)**
 
 - Domain model: users, categories, aliases, monthly budgets, allocations, expenses.
 - PostgreSQL schema with CHECK, UNIQUE and composite FOREIGN KEY constraints.
 - Historical monthly budget model that cannot be rewritten retroactively.
 - User isolation enforced by the database, not only by application code.
-- EF Core migrations applied by a one-shot migrator container, under a PostgreSQL
-  advisory lock so concurrent starts cannot race.
+- EF Core migrations applied by a one-shot migrator container under an advisory lock.
+- **Colombian money parser**: ~40 accepted input shapes, from `35k` and `35 mil` to
+  `$35,000`, non-breaking spaces and `1,5 millones`, with a Spanish message per failure
+  reason and no silent rounding.
+- **Money formatter** with pinned Colombian separators (not host culture) and comma
+  percentages.
+- **Compact expense extraction**: `35.000 verduras` becomes an amount plus a description,
+  and two equally plausible amounts are reported instead of guessed.
+- **Date parser**: `hoy`, `ayer`, `25/09`, `25-09-2026`, `2026-09-25`,
+  `25 de septiembre de 2026`.
+- **Localization catalog** with the language passed explicitly, a Spanish fallback, and a
+  build-failing test if a key is missing.
 - Structured JSON logging (Serilog), liveness/readiness/health endpoints.
 - Startup configuration validation: a bad time zone or language aborts boot with a clear
   message instead of breaking the first user.
@@ -41,14 +51,14 @@ later as data, not as a rewrite. Today there is exactly one of each.
   is DML-only).
 - Docker Compose deployment aligned with the `vps-gateway` standard, including the
   versioned gateway site config that restricts health endpoints and the webhook.
-- 169 tests: domain units, application contract tests, architecture tests, migration
-  guardrails and PostgreSQL integration tests.
+- 405 tests: domain units, money and date corpora with property-based tests, localization
+  guards, application contract tests, architecture tests, migration guardrails and
+  PostgreSQL integration tests.
 
 **Planned**
 
 | Phase | Scope |
 |---|---|
-| 2 | Colombian money parser/formatter, date parser, localization catalog |
 | 3 | Telegram webhook, update idempotency, user identity, conversation state, onboarding |
 | 4 | Category and monthly budget management |
 | 5 | Expense entry (guided and compact), edit, delete, history |
@@ -153,14 +163,28 @@ deployments.
 
 - Exact integers only. `long` in the domain, `bigint` in PostgreSQL. Never `float`/`double`.
 - No formatted strings are ever stored.
-- Parsing and formatting are dedicated components (Phase 2) with a large test corpus,
-  including property-based tests (`parse(format(x)) == x`).
+- `IMoneyParser` accepts everything a Colombian user actually types: `35000`, `35.000`,
+  `35,000`, `35 000`, `$35.000`, `35000 pesos`, `35k`, `35 mil`, `1,5 millones`, and the
+  non-breaking spaces mobile keyboards send. ~40 shapes are covered by tests.
+- It never throws and never guesses: every input yields a value, an explicit request for
+  clarification, or a named reason (`Empty`, `NotANumber`, `Negative`, `NonPositive`,
+  `FractionNotAllowed`, `TooLarge`, `MalformedGrouping`) that maps to a Spanish message.
+- `38.500,25` is rejected rather than rounded: COP has no cents, and silently changing
+  someone's money is not acceptable.
+- `IMoneyFormatter` pins Colombian separators explicitly instead of relying on host ICU
+  data: `3500 → $3.500`, `1500000 → $1.500.000`, `60,6 %`.
+- A second currency is a `CurrencyDefinition` entry: decimal places and separators drive the
+  parser, so no parsing code changes. A currency with decimal places is the only case that
+  can produce a genuine ambiguity, and it is handled by asking.
+- Covered by a data-driven corpus plus FsCheck properties: formatting then parsing always
+  returns the same amount, and parsing arbitrary text never throws.
 
 ## Localization strategy
 
 User-facing Spanish text lives in resources, never inline in business logic. The message
 catalog takes the language as an explicit parameter rather than reading ambient culture,
-because a Telegram bot has no HTTP request culture to rely on.
+because a Telegram bot has no HTTP request culture to rely on. Tests fail the build if a key
+is missing, if a value is blank, or if the declared keys and the resources disagree.
 
 All identifiers — types, methods, tables, columns, config keys, log events, tests,
 commits, documentation — are in English. Only resource *values* are Spanish.

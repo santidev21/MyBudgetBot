@@ -90,9 +90,14 @@ bounded, descriptions are trimmed, future expense dates are rejected, allocation
 negative. `today` is passed in rather than read from a static clock, so the rules are
 testable and time-zone correct.
 
-**Money.** Entities persist `long Amount` = whole COP pesos. `Money` as a rich type arrives
-with the parser in Phase 2 and is not persisted. Multi-currency later means one additive
-`currency char(3)` column on `expenses` plus a backfill; the schema does not block it.
+**Money.** Entities persist `long Amount` in the currency's minor units: whole pesos for COP,
+so 35.000 COP is `35000`. No wrapper type was introduced — amounts are `long` and money
+handling lives in dedicated parser and formatter services, which is where the real risk is.
+A `Money` value object would have added a type without adding a guarantee, since the
+invariant that matters (positive and bounded) is already enforced by the entity and the
+database. Multi-currency later means one additive `currency char(3)` column on `expenses`
+plus a backfill; `CurrencyDefinition` already carries decimal places and separators, so the
+parser and formatter need no change.
 
 **`CategorizationSource`** records how a category was chosen. It costs one small column and
 makes suggestion quality measurable later without logging any user text.
@@ -247,43 +252,66 @@ equally plausible amounts → `Ambiguous`, fall back to the guided flow.
 
 ## 8. Colombian number-format parsing rules
 
-COP has zero decimal places; Colombian convention is `.` grouping and `,` decimal.
+COP has zero decimal places; Colombian convention is `.` grouping and `,` decimal. The
+table below is the implemented behaviour, and every row is a test.
 
-| Input | Reading | Value | Result |
-|---|---|---|---|
-| `35000` | plain digits | 35000 | Success (Plain) |
-| `35.000` | `.` + exactly 3 digits → grouping | 35000 | Success (StandardGrouping) |
-| `35,000` | `,` + exactly 3 digits → thousands (English-style tolerance) | 35000 | Success (ToleratedGrouping) |
-| `35 000` (incl. NBSP) | space grouping | 35000 | Success |
-| `$35.000`, `COP 35.000`, `35000 pesos` | symbol/word stripped | 35000 | Success |
-| `35k`, `35 mil` | suffix ×1.000 | 35000 | Success (SuffixScaled) |
-| `1.5k`, `1,5k` | decimal + suffix, exact | 1500 | Success |
-| `1.5 millones` | decimal + suffix, exact | 1500000 | Success |
-| `1.500.000` | multi-group, 3-digit groups | 1500000 | Success |
-| `1.234,56`, `1,234.56` | non-zero fraction in COP | — | Invalid (no cents) |
-| `3,50` | single separator + 2 digits → decimal | 3,50 | Invalid |
-| `1,234,567` | repeating 3-digit groups | 1234567 | Success (ToleratedGrouping) |
-| `1.234.56` | malformed grouping | — | Ambiguous |
-| `0`, `-35.000` | non-positive | — | Invalid |
-| `1.234.567.890.123` | above sanity cap | — | Ambiguous (confirm magnitude) |
-| `abc`, ``, `35.00.00.0` | unparseable | — | Invalid |
+| Input | Result | Value |
+|---|---|---|
+| `35000` | Success (Plain) | 35000 |
+| `35.000` | Success (StandardGrouping) | 35000 |
+| `35,000` | Success (ToleratedGrouping) | 35000 |
+| `35 000`, `35<nbsp>000`, `35<thin space>000` | Success (SpaceGrouped) | 35000 |
+| `$35.000`, `$ 35.000`, `COP 35.000`, `35000 pesos`, `35000pesos` | Success | 35000 |
+| `+35.000`, `35.000.` | Success | 35000 |
+| `35k`, `35 k`, `35K`, `35 mil`, `35mil`, `35 mm` | Success (SuffixScaled) | 35000 / 35 000 000 |
+| `1,5k`, `1.5k` | Success (SuffixScaled) | 1500 |
+| `2 millones`, `1,5 millones de pesos` | Success (SuffixScaled) | 2 000 000 / 1 500 000 |
+| `1.500.000` | Success (StandardGrouping) | 1 500 000 |
+| `1,234,567` | Success (ToleratedGrouping) | 1 234 567 |
+| `0.500` | Success (StandardGrouping) | 500 |
+| `3,5`, `3,50`, `1.50`, `1.234,56`, `1,234.56` | Invalid (FractionNotAllowed) | — |
+| `1.234.56`, `35.00.00.0`, `1000.000`, `1.1234`, `1.234,56,78` | Invalid (MalformedGrouping) | — |
+| `0`, `0.000` | Invalid (NonPositive) | — |
+| `-35.000` | Invalid (Negative) | — |
+| `1000000000000`, `1.234.567.890.123`, a 25-digit number | Invalid (TooLarge) | — |
+| ``, `   `, `$` | Invalid (Empty) | — |
+| `abc`, `verduras`, `mil`, `k`, `35 mil mil`, `1.5m`, `35,000 kg` | Invalid (NotANumber) | — |
+| `1.500` in a currency with 2 decimal places | Ambiguous | 150 000 or 150 minor units |
 
-Rules: last separator wins when both appear; a single separator is grouping when exactly
-three digits follow, decimal when one or two follow; more than one occurrence of a separator
-is grouping provided every group after the first has exactly three digits; suffixes resolve
-first and may carry a fraction; anything that survives but exceeds the sanity cap is
-confirmed rather than accepted silently.
+The rules, in the order they are applied:
 
-**Deliberate deviation from the brief:** `3,500` and `3.500` are read as `3500` without
-asking. In a COP-only Colombian context `3,5` pesos is not a plausible intent, and the
-confirmation screen already echoes the normalised value. Prompting here would add friction
-to the single most common input, against the stated goal that recording an expense takes
-seconds.
+1. **Normalise.** Unicode compatibility form, lowercase, every space-like character
+   (including non-breaking and thin spaces) to ASCII space, strip `$` and the currency
+   symbol, strip spoken currency words (`pesos`, `colombianos`, `COP`) and the connectors
+   `de`/`del`, then trim trailing punctuation.
+2. **Strip the magnitude suffix**, longest match first: `k`/`mil` ×1.000,
+   `mm`/`millon`/`millón`/`millones` ×1.000.000. A bare `m` is deliberately **not** a
+   suffix, so `35 m` can never silently become 35 million.
+3. **Resolve separators.** Both kinds present means the last one is the decimal separator
+   and the other is grouping, and the decimal separator may appear only once. With exactly
+   one occurrence of one kind: three digits after it is grouping, one or two is decimal,
+   anything else is malformed. Two or more occurrences of one kind are all grouping. Spaces
+   are always grouping. Grouping is valid when the leading group has one to three digits and
+   every following group has exactly three; a single unseparated group is unconstrained.
+4. **Scale exactly.** `value × multiplier × 10^DecimalPlaces` must be a whole number, greater
+   than zero, and at most 999 999 999 999 — the same bound as the `ck_expenses_amount`
+   constraint. There is no rounding: an amount the currency cannot express is rejected.
+5. **Ambiguity** is reported only when the currency has decimal places, a lone separator is
+   followed by exactly three digits, and both readings are legal amounts. A currency with no
+   decimal places can never satisfy that, which is why COP users are never interrupted.
 
-Formatting always comes from `IMoneyFormatter`, built on an explicit `NumberFormatInfo`
-(`.` grouping, `,` decimal, `$ ` prefix) rather than on ICU output, so it cannot drift:
-`3500 → $3.500`, `35000 → $35.000`, `1500000 → $1.500.000`. Percentages use one decimal and
-a comma (`60,6 %`).
+Two deliberate deviations from the brief:
+
+- `3.500` and `3,500` are read as `3500` without asking. In a COP-only Colombian context
+  `3,5` pesos is not a plausible intent, and the confirmation screen already echoes the
+  normalised value. Prompting here would add friction to the single most common input.
+- There is no "confirm the magnitude" state. An amount above the accepted maximum is
+  `TooLarge`; everything else is already shown back to the user before it is saved.
+
+Formatting is done with explicit separator characters rather than ICU output, so it cannot
+drift with the host: `3500 → $3.500`, `35000 → $35.000`, `1500000 → $1.500.000`.
+Percentages use one decimal and a comma (`60,6 %`), and whole percentages have no decimal
+part (`72 %`).
 
 ## 9. Category matching algorithm
 
@@ -329,11 +357,21 @@ distance-1 candidate, and ties fall back to `Ambiguous`.
 
 Why not `IStringLocalizer`: it resolves culture from ambient state. A Telegram bot has no
 HTTP request culture, so every entry point would have to mutate async-local state correctly,
-and any miss silently returns the wrong language. Explicit is smaller and testable.
+and any miss silently returns the wrong language. Explicit is smaller and testable, and a
+test proves the ambient culture is ignored.
 
 - `MessageKeys` holds `const string` identifiers, all English. Resource *values* are Spanish.
-- A test asserts every key resolves in every registered language, so a missing translation
-  fails the build instead of rendering a raw key.
+- **Spanish is the neutral resource set** (`Resources/Messages.resx` plus
+  `<NeutralResourcesLanguage>es</NeutralResourcesLanguage>`). That means the default language
+  needs no satellite assembly, and a language without resources falls back to Spanish rather
+  than to nothing. Adding a language means adding `Messages.<culture>.resx` and listing the
+  culture in `Localization:SupportedLanguages`.
+- Resolution is `language → default language → the key itself`. A user never sees a blank
+  message, and an unusable language tag (which comes from the database and is therefore not
+  trusted) falls back instead of raising.
+- A missing translation fails the build: tests assert that the declared constants, the
+  `MessageKeys.All` list and the resources on disk agree exactly, in every direction, and that
+  no value is blank.
 - Resources hold plain text with placeholders; the presenter HTML-escapes each interpolated
   value before substitution and applies markup itself. A description containing `<b>` or
   `&` can therefore never alter the message structure.
@@ -381,7 +419,7 @@ and any miss silently returns the wrong language. Explicit is smaller and testab
 |---|---|---|
 | **0 Foundation** | Solution, build settings, central packages, Serilog, options validation, health endpoints, Docker, least-privilege roles, `--migrate`, Testcontainers fixture | Stack runs; healthchecks green; CI green — **done** |
 | **1 Domain + persistence** | Entities, EF configurations, raw-SQL composite FKs, repositories, interceptor | Integration tests for constraints, user isolation, historical budgets — **done** |
-| **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code |
+| **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code — **done** (97,5 % money, 100 % dates) |
 | **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row |
 | **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests |
@@ -515,13 +553,18 @@ Rules:
   and `parse(format(x)) == x` for random values in range.
 - Snapshot tests for rendered messages will run against a fake message catalog, with a small
   number of explicit Spanish assertions.
-- Coverage gates: Application and Domain ≥ 90 %, money code ≥ 95 %.
+- Coverage gates: Application and Domain ≥ 90 %, money code ≥ 95 %. Measured: Money 97,5 %,
+  Dates 100 %, Text 100 %, Configuration 100 %, Localization 97,3 %. The lines that remain
+  uncovered are defensive guards the public pipeline cannot reach, kept for future callers
+  and listed in the pull request that added them rather than deleted to make a number look
+  better.
 
-Coverage today: constraints, cross-user integrity (all four composite FKs), user isolation
-per repository, historical budget immutability, cascade and non-deletion behaviour, user
-erasure, orphan removal, migration guardrails (the raw-SQL constraints cannot silently
-disappear), timestamp maintenance, allocation persistence, localization option validation,
-architecture and repository contract tests. 169 tests, all green.
+Coverage today: money parsing and formatting (corpus plus FsCheck round-trip and
+never-throws properties), date parsing, the message catalog, constraints, cross-user
+integrity (all four composite FKs), user isolation per repository, historical budget
+immutability, cascade and non-deletion behaviour, user erasure, orphan removal, migration
+guardrails, timestamp maintenance, allocation persistence, localization option validation,
+architecture and repository contract tests. 405 tests, all green.
 
 ## 17. Backup strategy
 
