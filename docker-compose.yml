@@ -42,9 +42,11 @@ services:
 
   # One-shot: applies EF Core migrations, then exits. The application itself never
   # migrates on start, so a failed migration fails the deployment instead of leaving a
-  # half-booted service.
+  # half-booted service. Migrations run under a PostgreSQL advisory lock, so two
+  # migrator containers starting at once cannot race on the schema.
   migrator:
     container_name: mybudget-migrator
+    image: mybudget-app
     build:
       context: .
       dockerfile: docker/app/Dockerfile
@@ -66,6 +68,8 @@ services:
 
   app:
     container_name: mybudget
+    # Same image as the migrator: Compose builds it once instead of twice.
+    image: mybudget-app
     build:
       context: .
       dockerfile: docker/app/Dockerfile
