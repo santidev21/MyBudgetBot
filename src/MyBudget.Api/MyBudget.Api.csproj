@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Composition root and HTTP host: Telegram webhook endpoint, health checks,
+    structured logging and the one-shot migration entrypoint.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyBudget.Application\MyBudget.Application.csproj" />
+    <ProjectReference Include="..\MyBudget.Infrastructure\MyBudget.Infrastructure.csproj" />
+    <ProjectReference Include="..\MyBudget.Telegram\MyBudget.Telegram.csproj" />
+  </ItemGroup>
+
+</Project>
