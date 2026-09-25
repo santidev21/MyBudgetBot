@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Use cases and policies. Depends on the domain only: no EF Core, no Telegram types.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyBudget.Domain\MyBudget.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
