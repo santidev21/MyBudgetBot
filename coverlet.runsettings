@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Coverage configuration for `dotnet test --collect:"XPlat Code Coverage"`.
+  Coverage configuration for the XPlat Code Coverage collector.
   Generated EF Core migrations are excluded: they are not hand-written logic.
 -->
 <RunSettings>
