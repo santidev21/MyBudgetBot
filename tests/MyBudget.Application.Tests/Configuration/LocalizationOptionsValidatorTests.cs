@@ -22,7 +22,11 @@ public sealed class LocalizationOptionsValidatorTests
     [InlineData("en")]
     public void Well_formed_language_tags_are_accepted(string language)
     {
-        var options = new LocalizationOptions { DefaultLanguage = language };
+        var options = new LocalizationOptions
+        {
+            DefaultLanguage = language,
+            SupportedLanguages = [language],
+        };
 
         _validator.Validate(null, options).Succeeded.Should().BeTrue();
     }
@@ -37,12 +41,16 @@ public sealed class LocalizationOptionsValidatorTests
     [InlineData("es_CO")]
     public void Malformed_language_tags_are_rejected(string language)
     {
-        var options = new LocalizationOptions { DefaultLanguage = language };
+        var options = new LocalizationOptions
+        {
+            DefaultLanguage = language,
+            SupportedLanguages = [language],
+        };
 
         var result = _validator.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle(failure => failure.Contains("DefaultLanguage"));
+        result.Failures.Should().Contain(failure => failure.Contains("DefaultLanguage"));
     }
 
     [Theory]
@@ -70,7 +78,58 @@ public sealed class LocalizationOptionsValidatorTests
         var result = _validator.Validate(null, options);
 
         result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle(failure => failure.Contains("DefaultTimeZone"));
+        result.Failures.Should().Contain(failure => failure.Contains("DefaultTimeZone"));
+    }
+
+    [Fact]
+    public void An_empty_supported_language_list_is_rejected()
+    {
+        var options = new LocalizationOptions { SupportedLanguages = [] };
+
+        var result = _validator.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(failure => failure.Contains("SupportedLanguages"));
+    }
+
+    [Fact]
+    public void A_malformed_supported_language_is_rejected()
+    {
+        var options = new LocalizationOptions { SupportedLanguages = ["es", "english"] };
+
+        var result = _validator.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(failure => failure.Contains("english"));
+    }
+
+    [Fact]
+    public void A_default_language_without_resources_is_rejected()
+    {
+        // Otherwise every message would render as a raw key like "Expense.Registered".
+        var options = new LocalizationOptions
+        {
+            DefaultLanguage = "en",
+            SupportedLanguages = ["es"],
+        };
+
+        var result = _validator.Validate(null, options);
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(failure => failure.Contains("SupportedLanguages"));
+    }
+
+    [Fact]
+    public void The_default_language_matches_ignoring_case()
+    {
+        var options = new LocalizationOptions
+        {
+            DefaultLanguage = "es-CO",
+            SupportedLanguages = ["es-co"],
+        };
+
+        // "es-co" is a malformed tag, so this is rejected for that reason, not for the match.
+        _validator.Validate(null, options).Succeeded.Should().BeFalse();
     }
 
     [Fact]

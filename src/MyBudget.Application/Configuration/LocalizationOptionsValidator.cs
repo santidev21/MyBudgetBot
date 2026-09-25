@@ -32,6 +32,27 @@ public sealed class LocalizationOptionsValidator : IValidateOptions<Localization
                 "like 'es' or 'es-CO'.");
         }
 
+        if (options.SupportedLanguages.Count == 0)
+        {
+            failures.Add($"{LocalizationOptions.SectionName}:SupportedLanguages must list at least one language.");
+        }
+
+        foreach (var language in options.SupportedLanguages.Where(language => !IsValidLanguageTag(language)))
+        {
+            failures.Add(
+                $"{LocalizationOptions.SectionName}:SupportedLanguages contains '{language}', which is not a " +
+                "valid language tag.");
+        }
+
+        if (IsValidLanguageTag(options.DefaultLanguage)
+            && !options.SupportedLanguages.Contains(options.DefaultLanguage, StringComparer.OrdinalIgnoreCase))
+        {
+            failures.Add(
+                $"{LocalizationOptions.SectionName}:DefaultLanguage '{options.DefaultLanguage}' is not listed " +
+                $"in SupportedLanguages ({string.Join(", ", options.SupportedLanguages)}). Without resources it " +
+                "would render message keys to the user.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

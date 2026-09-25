@@ -9,9 +9,6 @@ namespace MyBudget.Domain.Expenses;
 /// </summary>
 public sealed class Expense : Entity
 {
-    /// <summary>Upper bound that also exists as a database CHECK constraint.</summary>
-    public const long MaxAmount = 999_999_999_999L;
-
     public const int MaxDescriptionLength = 500;
 
     private Expense()
@@ -59,10 +56,10 @@ public sealed class Expense : Entity
                 nameof(amount), amount, "An expense must be greater than zero.");
         }
 
-        if (amount > MaxAmount)
+        if (amount > MoneyLimits.MaxAmount)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(amount), amount, $"An expense cannot exceed {MaxAmount}.");
+                nameof(amount), amount, $"An expense cannot exceed {MoneyLimits.MaxAmount}.");
         }
 
         Amount = amount;

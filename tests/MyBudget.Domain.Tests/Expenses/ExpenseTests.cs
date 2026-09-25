@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MyBudget.Domain.Common;
 using MyBudget.Domain.Expenses;
 
 namespace MyBudget.Domain.Tests.Expenses;
@@ -45,14 +46,14 @@ public sealed class ExpenseTests
     [Fact]
     public void An_amount_above_the_upper_bound_is_rejected()
     {
-        FluentActions.Invoking(() => CreateExpense(amount: Expense.MaxAmount + 1))
+        FluentActions.Invoking(() => CreateExpense(amount: MoneyLimits.MaxAmount + 1))
             .Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
     public void The_upper_bound_itself_is_accepted()
     {
-        CreateExpense(amount: Expense.MaxAmount).Amount.Should().Be(Expense.MaxAmount);
+        CreateExpense(amount: MoneyLimits.MaxAmount).Amount.Should().Be(MoneyLimits.MaxAmount);
     }
 
     [Fact]

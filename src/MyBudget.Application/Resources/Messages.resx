@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Spanish is the neutral resource set: the product ships Spanish first, and it is the
+  fallback for any language that has no satellite assembly yet. Declared with
+  <NeutralResourcesLanguage>es</NeutralResourcesLanguage> in MyBudget.Application.csproj.
+
+  Keys are English. Only the values are user-facing text. Adding a language means adding
+  Messages.<culture>.resx next to this file and listing the culture in
+  Localization:SupportedLanguages.
+-->
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <data name="Welcome" xml:space="preserve">
+    <value>¡Hola! Soy tu presupuesto personal. Registro tus gastos y te muestro en qué se va la plata cada mes.</value>
+  </data>
+  <data name="Help" xml:space="preserve">
+    <value>Usa el menú de abajo para moverte. También puedes escribir un gasto directamente, por ejemplo: 35.000 verduras.</value>
+  </data>
+  <data name="AccessDenied" xml:space="preserve">
+    <value>Este bot es de uso privado.</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>Listo, cancelé lo que estábamos haciendo.</value>
+  </data>
+  <data name="ConversationExpired" xml:space="preserve">
+    <value>La conversación expiró. Empecemos de nuevo cuando quieras.</value>
+  </data>
+  <data name="UnexpectedError" xml:space="preserve">
+    <value>No pude completar la operación. Intenta de nuevo en un momento.</value>
+  </data>
+
+  <data name="Menu.Summary" xml:space="preserve">
+    <value>📊 Resumen</value>
+  </data>
+  <data name="Menu.AddExpense" xml:space="preserve">
+    <value>➕ Agregar gasto</value>
+  </data>
+  <data name="Menu.Expenses" xml:space="preserve">
+    <value>📋 Gastos</value>
+  </data>
+  <data name="Menu.Categories" xml:space="preserve">
+    <value>🏷️ Categorías</value>
+  </data>
+  <data name="Menu.Statistics" xml:space="preserve">
+    <value>📈 Estadísticas</value>
+  </data>
+  <data name="Menu.Settings" xml:space="preserve">
+    <value>⚙️ Configuración</value>
+  </data>
+
+  <data name="Buttons.Cancel" xml:space="preserve">
+    <value>❌ Cancelar</value>
+  </data>
+  <data name="Buttons.Confirm" xml:space="preserve">
+    <value>✅ Registrar</value>
+  </data>
+  <data name="Buttons.Edit" xml:space="preserve">
+    <value>✏️ Editar</value>
+  </data>
+  <data name="Buttons.ChangeCategory" xml:space="preserve">
+    <value>🏷️ Cambiar categoría</value>
+  </data>
+  <data name="Buttons.ChangeDate" xml:space="preserve">
+    <value>📅 Fecha</value>
+  </data>
+  <data name="Buttons.Undo" xml:space="preserve">
+    <value>↩️ Deshacer</value>
+  </data>
+
+  <data name="Amount.Prompt" xml:space="preserve">
+    <value>¿Cuánto gastaste?</value>
+  </data>
+  <data name="Amount.Invalid" xml:space="preserve">
+    <value>No entendí el valor. Escríbelo así: 35.000, 35k o 1,5 millones.</value>
+  </data>
+  <data name="Amount.Negative" xml:space="preserve">
+    <value>El valor debe ser positivo.</value>
+  </data>
+  <data name="Amount.TooLarge" xml:space="preserve">
+    <value>El valor es demasiado grande. ¿Lo revisas?</value>
+  </data>
+  <data name="Amount.FractionNotAllowed" xml:space="preserve">
+    <value>Los pesos no usan centavos. Escribe un valor entero, por ejemplo 3.500.</value>
+  </data>
+  <data name="Amount.Ambiguous" xml:space="preserve">
+    <value>El valor se puede leer de dos formas: {0} o {1}. ¿Cuál es la correcta?</value>
+  </data>
+
+  <data name="Date.Prompt" xml:space="preserve">
+    <value>¿De qué día es el gasto?</value>
+  </data>
+  <data name="Date.Invalid" xml:space="preserve">
+    <value>No entendí la fecha. Prueba con: hoy, ayer, 25/09 o 25 de septiembre.</value>
+  </data>
+  <data name="Date.Future" xml:space="preserve">
+    <value>La fecha no puede ser futura.</value>
+  </data>
+  <data name="Date.TooOld" xml:space="preserve">
+    <value>Esa fecha es demasiado antigua.</value>
+  </data>
+
+  <data name="Expense.Registered" xml:space="preserve">
+    <value>✅ Gasto registrado correctamente.</value>
+  </data>
+  <data name="Expense.ConfirmationHeader" xml:space="preserve">
+    <value>Entendí:</value>
+  </data>
+  <data name="Expense.CategorySuggestion" xml:space="preserve">
+    <value>Creo que este gasto corresponde a {0}.</value>
+  </data>
+  <data name="Expense.CategoryAmbiguous" xml:space="preserve">
+    <value>¿A qué categoría corresponde?</value>
+  </data>
+  <data name="Expense.CategoryNone" xml:space="preserve">
+    <value>No reconocí la categoría. ¿Cuál eliges?</value>
+  </data>
+</root>
