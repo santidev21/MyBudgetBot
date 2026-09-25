@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The domain layer. No persistence, no Telegram, no I/O: entities, value objects and
+    pure calculation only, so it can be unit tested without any infrastructure.
+  -->
+
+</Project>
