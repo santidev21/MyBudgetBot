@@ -233,6 +233,10 @@ Application service: `IExpenseService`. Conversations: `ExpenseConversation` (en
 `ExpensesConversation` (list, detail, edit, delete) and `ExpenseUndoHandler` (global action).
 Storage: `IPendingActionStore` with the `pending_actions` table.
 
+Deferred: date-range history with keyset pagination (design §11.5). The list shows the current
+month only; ranges and paging are a follow-up, and the statistics work in Phase 7 will need
+period queries anyway.
+
 ### Phase 6 scope — category matching and keyword learning
 
 Next: the deterministic matcher described in `docs/TECHNICAL-DESIGN.md` §9. It scores the user's
