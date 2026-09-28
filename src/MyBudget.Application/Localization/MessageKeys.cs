@@ -44,6 +44,16 @@ public static class MessageKeys
     public const string DateFuture = "Date.Future";
     public const string DateTooOld = "Date.TooOld";
 
+    public const string OnboardingTimezonePrompt = "Onboarding.TimezonePrompt";
+    public const string OnboardingTimezoneSaved = "Onboarding.TimezoneSaved";
+    public const string OnboardingTimezoneCustomPrompt = "Onboarding.TimezoneCustomPrompt";
+    public const string OnboardingTimezoneCustomInvalid = "Onboarding.TimezoneCustomInvalid";
+    public const string FeatureNotReady = "FeatureNotReady";
+
+    public const string CommandStartDescription = "Command.Start.Description";
+    public const string CommandHelpDescription = "Command.Help.Description";
+    public const string CommandCancelDescription = "Command.Cancel.Description";
+
     public const string ExpenseRegistered = "Expense.Registered";
     public const string ExpenseConfirmationHeader = "Expense.ConfirmationHeader";
     public const string ExpenseCategorySuggestion = "Expense.CategorySuggestion";
@@ -81,6 +91,14 @@ public static class MessageKeys
         DateInvalid,
         DateFuture,
         DateTooOld,
+        OnboardingTimezonePrompt,
+        OnboardingTimezoneSaved,
+        OnboardingTimezoneCustomPrompt,
+        OnboardingTimezoneCustomInvalid,
+        FeatureNotReady,
+        CommandStartDescription,
+        CommandHelpDescription,
+        CommandCancelDescription,
         ExpenseRegistered,
         ExpenseConfirmationHeader,
         ExpenseCategorySuggestion,

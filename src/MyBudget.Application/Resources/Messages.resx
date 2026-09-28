@@ -111,10 +111,35 @@
     <value>Esa fecha es demasiado antigua.</value>
   </data>
 
+  <data name="Onboarding.TimezonePrompt" xml:space="preserve">
+    <value>¿En qué zona horaria estás? Así calculo bien el día de cada gasto.</value>
+  </data>
+  <data name="Onboarding.TimezoneSaved" xml:space="preserve">
+    <value>Listo, ya registro tus gastos con esa zona horaria.</value>
+  </data>
+  <data name="Onboarding.TimezoneCustomPrompt" xml:space="preserve">
+    <value>Escríbeme tu zona horaria tal como aparece en la lista IANA, por ejemplo: America/Bogota</value>
+  </data>
+  <data name="Onboarding.TimezoneCustomInvalid" xml:space="preserve">
+    <value>No reconocí esa zona horaria. Prueba con el nombre IANA, por ejemplo: America/Bogota</value>
+  </data>
+  <data name="FeatureNotReady" xml:space="preserve">
+    <value>Esa parte todavía no está lista. La estoy construyendo.</value>
+  </data>
+
+  <data name="Command.Start.Description" xml:space="preserve">
+    <value>Empezar o reiniciar</value>
+  </data>
+  <data name="Command.Help.Description" xml:space="preserve">
+    <value>Cómo funciona el bot</value>
+  </data>
+  <data name="Command.Cancel.Description" xml:space="preserve">
+    <value>Cancelar lo que estoy haciendo</value>
+  </data>
+
   <data name="Expense.Registered" xml:space="preserve">
     <value>✅ Gasto registrado correctamente.</value>
-  </data>
-  <data name="Expense.ConfirmationHeader" xml:space="preserve">
+  </data>  <data name="Expense.ConfirmationHeader" xml:space="preserve">
     <value>Entendí:</value>
   </data>
   <data name="Expense.CategorySuggestion" xml:space="preserve">

@@ -86,8 +86,11 @@ services:
       Telegram__BotToken: ${TELEGRAM_BOT_TOKEN:-}
       Telegram__WebhookSecret: ${TELEGRAM_WEBHOOK_SECRET:-}
       Telegram__WebhookPath: ${TELEGRAM_WEBHOOK_PATH:-}
+      Telegram__PublicBaseUrl: ${TELEGRAM_PUBLIC_BASE_URL:-}
       Telegram__AllowedUserIds: ${ALLOWED_TELEGRAM_USER_IDS:-}
+      Telegram__UsePolling: ${TELEGRAM_USE_POLLING:-false}
       Telegram__StaleUpdateMinutes: ${TELEGRAM_STALE_UPDATE_MINUTES:-15}
+      Telegram__ConversationTimeoutMinutes: ${TELEGRAM_CONVERSATION_TIMEOUT_MINUTES:-30}
       Localization__DefaultLanguage: ${DEFAULT_LANGUAGE:-es}
       Localization__DefaultTimeZone: ${DEFAULT_TIME_ZONE:-America/Bogota}
     # No ports published: the gateway reaches this container over mybudget-net.

@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using MyBudget.Api.Endpoints;
 using MyBudget.Application;
 using MyBudget.Infrastructure;
 using MyBudget.Infrastructure.Persistence;
+using MyBudget.Telegram;
+using MyBudget.Telegram.Options;
 using Serilog;
+using Serilog.Events;
 using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -31,6 +36,7 @@ var connectionString = builder.Configuration.GetConnectionString("Database");
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddTelegram(builder.Configuration);
 builder.Services.AddProblemDetails();
 
 builder.Services
@@ -52,7 +58,54 @@ if (args.Contains("--migrate", StringComparer.Ordinal))
     return;
 }
 
-app.UseSerilogRequestLogging();
+// Explicit, one-off provisioning. Never done at startup: calling setWebhook on every boot
+// would repeatedly disturb the transport the user depends on.
+if (args.Contains("--configure-telegram", StringComparer.Ordinal)
+    || args.Contains("--delete-webhook", StringComparer.Ordinal))
+{
+    var delete = args.Contains("--delete-webhook", StringComparer.Ordinal);
+    var dropPending = args.Contains("--drop-pending", StringComparer.Ordinal);
+
+    using var provisioningScope = app.Services.CreateScope();
+    var telegramOptions = provisioningScope.ServiceProvider
+        .GetRequiredService<IOptions<TelegramOptions>>().Value;
+
+    if (!telegramOptions.IsEnabled)
+    {
+        Log.Error("Telegram:BotToken is not configured; nothing to provision.");
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    var provisioner = provisioningScope.ServiceProvider.GetRequiredService<ITelegramProvisioner>();
+
+    if (delete)
+    {
+        await provisioner.DeleteWebhookAsync(dropPending);
+    }
+    else
+    {
+        await provisioner.ConfigureAsync(dropPending);
+    }
+
+    return;
+}
+
+// The webhook route carries a secret segment, so request logging for it is downgraded: access
+// log paths end up in files and dashboards far too easily.
+app.UseSerilogRequestLogging(options => options.GetLevel = (httpContext, _, exception) =>
+{
+    if (exception is not null)
+    {
+        return LogEventLevel.Error;
+    }
+
+    return httpContext.Request.Path.StartsWithSegments(TelegramWebhook.RoutePrefix)
+        ? LogEventLevel.Debug
+        : LogEventLevel.Information;
+});
+
+app.MapTelegramWebhook();
 
 app.MapGet("/", () => Results.NoContent());
 

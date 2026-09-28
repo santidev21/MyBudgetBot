@@ -1,0 +1,138 @@
+using Microsoft.Extensions.Options;
+using MyBudget.Application.Abstractions.Telegram;
+using MyBudget.Application.Localization;
+using MyBudget.Telegram.Options;
+using MyBudget.Telegram.Presentation;
+
+namespace MyBudget.Telegram.Conversations;
+
+/// <summary>
+/// Decides which conversation owns an input, runs it, and persists the resulting state.
+/// <para>
+/// All the flow logic lives in the conversations. This type only routes, and it is the single
+/// place where conversation state is written, so a flow can never forget to persist itself.
+/// </para>
+/// </summary>
+internal sealed class ConversationRouter(
+    IConversationStore store,
+    IUserMessages messages,
+    MainMenu menu,
+    IEnumerable<IConversation> conversations,
+    IOptions<TelegramOptions> options,
+    TimeProvider timeProvider)
+{
+    public async Task<ConversationTurn> RouteTextAsync(
+        ConversationContext context, string text, CancellationToken cancellationToken)
+    {
+        var command = BotCommands.Parse(text);
+
+        if (command == BotCommands.Cancel)
+        {
+            await store.ClearAsync(context.User.Id, cancellationToken);
+            return Finished(ConversationTurn.Say(messages.Get(context.Language, MessageKeys.Cancelled)));
+        }
+
+        if (command is not null)
+        {
+            return await RunCommandAsync(context, command, cancellationToken);
+        }
+
+        if (ActiveConversation(context) is { } active)
+        {
+            var turn = await active.HandleTextAsync(context, new IncomingText(text), cancellationToken);
+            await PersistAsync(context, active.Name, turn, cancellationToken);
+            return turn;
+        }
+
+        if (menu.MatchAction(context.Language, text) is not null)
+        {
+            return Finished(
+                ConversationTurn.Say(messages.Get(context.Language, MessageKeys.FeatureNotReady)));
+        }
+
+        return Finished(HelpTurn(context));
+    }
+
+    public async Task<ConversationTurn> RouteCallbackAsync(
+        ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
+    {
+        if (ActiveConversation(context) is not { } active)
+        {
+            return Finished(
+                ConversationTurn.Say(
+                    messages.Get(context.Language, MessageKeys.ConversationExpired),
+                    menu.ReplyKeyboard(context.Language)));
+        }
+
+        var turn = await active.HandleCallbackAsync(context, callback, cancellationToken);
+        await PersistAsync(context, active.Name, turn, cancellationToken);
+        return turn;
+    }
+
+    private async Task<ConversationTurn> RunCommandAsync(
+        ConversationContext context, string command, CancellationToken cancellationToken)
+    {
+        switch (command)
+        {
+            case BotCommands.Start:
+                {
+                    // Starting again replaces whatever was in progress.
+                    await store.ClearAsync(context.User.Id, cancellationToken);
+
+                    if (Find(StartConversation.ConversationName) is not { } onboarding)
+                    {
+                        break;
+                    }
+
+                    var fresh = context with { Conversation = null };
+                    var started = await onboarding.StartAsync(fresh, cancellationToken);
+                    await PersistAsync(fresh, onboarding.Name, started, cancellationToken);
+                    return started;
+                }
+
+            case BotCommands.Help:
+                await store.ClearAsync(context.User.Id, cancellationToken);
+                return Finished(HelpTurn(context));
+        }
+
+        return Finished(HelpTurn(context));
+    }
+
+    private IConversation? ActiveConversation(ConversationContext context) =>
+        context.Conversation is { } snapshot ? Find(snapshot.Conversation) : null;
+
+    private IConversation? Find(string name) =>
+        conversations.FirstOrDefault(conversation => conversation.Name == name);
+
+    private async Task PersistAsync(
+        ConversationContext context, string conversationName, ConversationTurn turn,
+        CancellationToken cancellationToken)
+    {
+        if (turn.Completed || turn.NextState is null)
+        {
+            await store.ClearAsync(context.User.Id, cancellationToken);
+            return;
+        }
+
+        await store.SaveAsync(
+            new ConversationSnapshot(
+                context.User.Id,
+                context.ChatId,
+                conversationName,
+                turn.NextState,
+                turn.NextPayload ?? "{}",
+                timeProvider.GetUtcNow() + options.Value.ConversationTimeout),
+            cancellationToken);
+    }
+
+    private ConversationTurn HelpTurn(ConversationContext context) =>
+        ConversationTurn.Say(
+            messages.Get(context.Language, MessageKeys.Help), menu.ReplyKeyboard(context.Language));
+
+    /// <summary>
+    /// A turn that ends the flow. The state is cleared by <see cref="PersistAsync"/>, which is
+    /// what makes an abandoned flow impossible to resume by accident.
+    /// </summary>
+    private static ConversationTurn Finished(ConversationTurn turn) =>
+        turn with { Completed = true, NextState = null };
+}
