@@ -7,6 +7,7 @@ using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
 using MyBudget.Domain.Users;
@@ -26,7 +27,7 @@ namespace MyBudget.Telegram.Tests;
 /// </summary>
 internal sealed class TelegramHarness
 {
-    private TelegramHarness(User user, TelegramOptions options, TimeProvider clock)
+    private TelegramHarness(User user, TelegramOptions options, TimeProvider clock, CategoryMatchingOptions matching)
     {
         User = user;
         Options = options;
@@ -35,6 +36,7 @@ internal sealed class TelegramHarness
         var localization = Microsoft.Extensions.Options.Options.Create(new LocalizationOptions());
         Messages = new ResourceUserMessages(localization);
         Menu = new MainMenu(Messages);
+        Matcher = new CategoryMatcher(Microsoft.Extensions.Options.Options.Create(matching));
 
         Users = Substitute.For<IUserService>();
         Users.GetOrCreateAsync(Arg.Any<long>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
@@ -72,6 +74,7 @@ internal sealed class TelegramHarness
             moneyParser,
             formatter,
             dateParser,
+            Matcher,
             localDate,
             clock,
             telegramOptions,
@@ -115,6 +118,8 @@ internal sealed class TelegramHarness
 
     public MainMenu Menu { get; }
 
+    public ICategoryMatcher Matcher { get; }
+
     public IUserService Users { get; }
 
     public StartConversation Onboarding { get; }
@@ -150,7 +155,8 @@ internal sealed class TelegramHarness
     public static TelegramHarness Build(
         long telegramUserId = 999,
         TelegramOptions? options = null,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        CategoryMatchingOptions? matching = null)
     {
         var settings = options ?? new TelegramOptions
         {
@@ -163,6 +169,6 @@ internal sealed class TelegramHarness
 
         var user = new User(telegramUserId, "tester", "Test User");
 
-        return new TelegramHarness(user, settings, clock ?? FixedClock.At(TestClock.Now));
+        return new TelegramHarness(user, settings, clock ?? FixedClock.At(TestClock.Now), matching ?? new CategoryMatchingOptions());
     }
 }

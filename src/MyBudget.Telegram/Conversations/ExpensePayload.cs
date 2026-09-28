@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MyBudget.Domain.Expenses;
 
 namespace MyBudget.Telegram.Conversations;
 
@@ -25,6 +26,18 @@ internal sealed record ExpensePayload
     public string? CategoryIcon { get; init; }
 
     public DateOnly? Date { get; init; }
+
+    /// <summary>
+    /// How the category was chosen, carried to the confirmation so the expense records the
+    /// suggestion quality. <c>null</c> means the picker path, which is manual.
+    /// </summary>
+    public CategorizationSource? Source { get; init; }
+
+    /// <summary>
+    /// The unrecognized description offered to be saved as a keyword once the user picks a
+    /// category. Cleared as soon as the user decides.
+    /// </summary>
+    public string? LearnTerm { get; init; }
 
     public static ExpensePayload Parse(string? payload)
     {

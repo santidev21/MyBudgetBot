@@ -4,7 +4,9 @@ using MyBudget.Application.Categories;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
+using MyBudget.Domain.Categories;
 using MyBudget.Domain.Expenses;
 using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
@@ -27,6 +29,7 @@ internal sealed class ExpenseConversation(
     IMoneyParser moneyParser,
     IMoneyFormatter moneyFormatter,
     IDateParser dateParser,
+    ICategoryMatcher matcher,
     IUserLocalDate localDate,
     TimeProvider timeProvider,
     IOptions<TelegramOptions> options,
@@ -42,12 +45,16 @@ internal sealed class ExpenseConversation(
     private const string ChangeDateCallback = CallbackPrefix + "date";
     private const string TodayCallback = CallbackPrefix + "today";
     private const string YesterdayCallback = CallbackPrefix + "yesterday";
+    private const string LearnSaveCallback = CallbackPrefix + "learn:save";
+    private const string LearnConfirmCallback = CallbackPrefix + "learn:confirm";
+    private const string LearnSkipCallback = CallbackPrefix + "learn:skip";
     private const string ConfirmPrefix = "v1|expense|";
 
     private const string AwaitingAmountState = "awaiting-amount";
     private const string AwaitingDescriptionState = "awaiting-description";
     private const string CategoryState = "category";
     private const string AwaitingDateState = "awaiting-date";
+    private const string LearnKeywordState = "learn-keyword";
     private const string ConfirmState = "confirm";
 
     public string Name => ConversationName;
@@ -62,11 +69,10 @@ internal sealed class ExpenseConversation(
         switch (parsed.Outcome)
         {
             case CompactExpenseOutcome.Parsed:
-                // Both halves are known, so skip straight to the category.
-                return await CategoryPickerAsync(
+                // Both halves are known; the matcher decides the category or asks for it.
+                return await AfterDescriptionAsync(
                     context,
                     new ExpensePayload { Amount = parsed.Amount, Description = parsed.Description },
-                    [],
                     cancellationToken);
 
             case CompactExpenseOutcome.AmountOnly:
@@ -109,12 +115,33 @@ internal sealed class ExpenseConversation(
         if (data == SkipCallback)
         {
             return await CategoryPickerAsync(
-                context, payload with { Description = null }, [], cancellationToken);
+                context,
+                payload with { Description = null, Source = CategorizationSource.Manual, LearnTerm = null },
+                [],
+                cancellationToken);
         }
 
         if (data == ChangeCategoryCallback)
         {
-            return await CategoryPickerAsync(context, payload, [], cancellationToken);
+            return await CategoryPickerAsync(
+                context, payload with { Source = CategorizationSource.Manual, LearnTerm = null }, [],
+                cancellationToken);
+        }
+
+        if (data == LearnSaveCallback)
+        {
+            return await LearnKeywordAsync(context, payload, allowConflict: false, cancellationToken);
+        }
+
+        if (data == LearnConfirmCallback)
+        {
+            return await LearnKeywordAsync(context, payload, allowConflict: true, cancellationToken);
+        }
+
+        if (data == LearnSkipCallback)
+        {
+            return await ConfirmationAsync(
+                context, payload with { LearnTerm = null }, [], cancellationToken);
         }
 
         if (data == ChangeDateCallback)
@@ -170,8 +197,7 @@ internal sealed class ExpenseConversation(
         ConversationContext context, ExpensePayload payload, string raw, CancellationToken cancellationToken)
     {
         var description = string.IsNullOrWhiteSpace(raw) ? null : raw.Trim();
-        return await CategoryPickerAsync(
-            context, payload with { Description = description }, [], cancellationToken);
+        return await AfterDescriptionAsync(context, payload with { Description = description }, cancellationToken);
     }
 
     private async Task<ConversationTurn> HandleDateAsync(
@@ -191,6 +217,66 @@ internal sealed class ExpenseConversation(
         return DatePrompt(context, payload, [Said(context, key)]);
     }
 
+    /// <summary>
+    /// Runs the matcher once the description is known and routes to a suggestion, an ambiguous
+    /// picker, or the picker plus the offer to learn the term (design §9).
+    /// </summary>
+    private async Task<ConversationTurn> AfterDescriptionAsync(
+        ConversationContext context, ExpensePayload payload, CancellationToken cancellationToken)
+    {
+        var active = await categories.ListAsync(context.User.Id, includeInactive: false, cancellationToken);
+        if (active.Count == 0)
+        {
+            return NoCategories(context);
+        }
+
+        var description = payload.Description;
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return BuildPickerTurn(
+                context, payload with { Source = CategorizationSource.Manual, LearnTerm = null }, active, []);
+        }
+
+        var inputs = active
+            .Select(category => new CategoryMatchInput(
+                category.Id, category.Name, category.Icon, category.Aliases.Select(alias => alias.Alias).ToList()))
+            .ToList();
+
+        var match = matcher.Match(description, inputs);
+
+        switch (match.Outcome)
+        {
+            case CategoryMatchOutcome.Matched when match.Suggestion is { } suggestion:
+                return await ConfirmationAsync(
+                    context,
+                    payload with
+                    {
+                        CategoryId = suggestion.CategoryId,
+                        CategoryName = suggestion.Name,
+                        CategoryIcon = suggestion.Icon,
+                        Source = CategorizationSource.Matched,
+                        LearnTerm = null,
+                    },
+                    [Said(context, MessageKeys.ExpenseCategorySuggestion, $"{suggestion.Icon} {suggestion.Name}")],
+                    cancellationToken);
+
+            case CategoryMatchOutcome.Ambiguous:
+                return BuildPickerTurn(
+                    context,
+                    payload with { Source = CategorizationSource.Ambiguous, LearnTerm = null },
+                    active,
+                    [Said(context, MessageKeys.ExpenseCategoryAmbiguous)]);
+
+            default:
+                // Learning only makes sense for a real term the user typed.
+                return BuildPickerTurn(
+                    context,
+                    payload with { Source = CategorizationSource.Manual, LearnTerm = description },
+                    active,
+                    [Said(context, MessageKeys.ExpenseCategoryNone)]);
+        }
+    }
+
     private async Task<ConversationTurn> ChooseCategoryAsync(
         ConversationContext context, ExpensePayload payload, Guid categoryId, CancellationToken cancellationToken)
     {
@@ -206,9 +292,110 @@ internal sealed class ExpenseConversation(
             CategoryId = category.Id,
             CategoryName = category.Name,
             CategoryIcon = category.Icon,
+            Source = payload.Source ?? CategorizationSource.Manual,
         };
 
-        return await ConfirmationAsync(context, next, [], cancellationToken);
+        return next.LearnTerm is { Length: > 0 }
+            ? LearnPromptTurn(context, next)
+            : await ConfirmationAsync(context, next, [], cancellationToken);
+    }
+
+    /// <summary>
+    /// Offers to save the unrecognized term as a keyword of the chosen category, showing exactly
+    /// what will be stored before anything is written.
+    /// </summary>
+    private ConversationTurn LearnPromptTurn(ConversationContext context, ExpensePayload payload)
+    {
+        var language = context.Language;
+        var label = $"{payload.CategoryIcon} {payload.CategoryName}";
+        var keyboard = BotKeyboard.Inline(
+            new[]
+            {
+                new BotButton(messages.Get(language, MessageKeys.ButtonSaveAlias), LearnSaveCallback),
+                new BotButton(messages.Get(language, MessageKeys.ButtonSkip), LearnSkipCallback),
+            },
+            new[]
+            {
+                new BotButton(messages.Get(language, MessageKeys.ButtonCancel), CancelCallback),
+            });
+
+        return new ConversationTurn(
+        [
+            BotResponse.Message(
+                messages.Get(language, MessageKeys.ExpenseLearnKeywordPrompt, payload.LearnTerm, label),
+                keyboard),
+        ])
+        {
+            NextState = LearnKeywordState,
+            NextPayload = payload.Serialize(),
+        };
+    }
+
+    private async Task<ConversationTurn> LearnKeywordAsync(
+        ConversationContext context,
+        ExpensePayload payload,
+        bool allowConflict,
+        CancellationToken cancellationToken)
+    {
+        if (payload.CategoryId is not { } categoryId || payload.LearnTerm is not { Length: > 0 } term)
+        {
+            return await ConfirmationAsync(
+                context, payload with { LearnTerm = null }, [], cancellationToken);
+        }
+
+        var language = context.Language;
+        var label = $"{payload.CategoryIcon} {payload.CategoryName}";
+        var result = await categories.AddAliasAsync(
+            context.User.Id, categoryId, term, allowConflict, cancellationToken);
+
+        switch (result.Status)
+        {
+            case AliasChangeStatus.Added:
+                return await ConfirmationAsync(
+                    context,
+                    payload with { LearnTerm = null },
+                    [Said(context, MessageKeys.ExpenseLearnKeywordSaved, term, label)],
+                    cancellationToken);
+
+            case AliasChangeStatus.Duplicate:
+                // Already a keyword of this category; nothing to store and nothing to warn about.
+                return await ConfirmationAsync(
+                    context,
+                    payload with { LearnTerm = null },
+                    [Said(context, MessageKeys.AliasDuplicate)],
+                    cancellationToken);
+
+            case AliasChangeStatus.Conflict:
+                var owners = string.Join(", ", result.ConflictingCategories.Select(owner => owner.Name));
+                var keyboard = BotKeyboard.Inline(
+                    new[]
+                    {
+                        new BotButton(
+                            messages.Get(language, MessageKeys.AliasButtonAddAnyway), LearnConfirmCallback),
+                        new BotButton(messages.Get(language, MessageKeys.ButtonSkip), LearnSkipCallback),
+                    },
+                    new[]
+                    {
+                        new BotButton(messages.Get(language, MessageKeys.ButtonCancel), CancelCallback),
+                    });
+
+                return new ConversationTurn(
+                [
+                    Said(context, MessageKeys.AliasConflict, owners),
+                    BotResponse.Message(messages.Get(language, MessageKeys.AliasConflictHint), keyboard),
+                ])
+                {
+                    NextState = LearnKeywordState,
+                    NextPayload = payload.Serialize(),
+                };
+
+            default:
+                return await CategoryPickerAsync(
+                    context,
+                    payload with { LearnTerm = null },
+                    [Said(context, MessageKeys.CategoryNotFound)],
+                    cancellationToken);
+        }
     }
 
     private async Task<ConversationTurn> ConfirmAsync(
@@ -229,7 +416,7 @@ internal sealed class ExpenseConversation(
         var today = Today(context);
         var result = await expenses.CreateAsync(
             context.User.Id, categoryId, amount, draft.Description, draft.Date ?? today, today,
-            CategorizationSource.Manual, cancellationToken);
+            draft.Source ?? CategorizationSource.Manual, cancellationToken);
 
         if (!result.Saved || result.Expense is null)
         {
@@ -309,21 +496,19 @@ internal sealed class ExpenseConversation(
         IReadOnlyList<BotResponse> notices,
         CancellationToken cancellationToken)
     {
-        var language = context.Language;
         var active = await categories.ListAsync(context.User.Id, includeInactive: false, cancellationToken);
+        return active.Count == 0
+            ? NoCategories(context)
+            : BuildPickerTurn(context, payload, active, notices);
+    }
 
-        if (active.Count == 0)
-        {
-            return new ConversationTurn(
-            [
-                BotResponse.Message(
-                    messages.Get(language, MessageKeys.ExpenseNoCategories),
-                    menu.ReplyKeyboard(language)),
-            ])
-            {
-                Completed = true,
-            };
-        }
+    private ConversationTurn BuildPickerTurn(
+        ConversationContext context,
+        ExpensePayload payload,
+        IReadOnlyList<BudgetCategory> active,
+        IReadOnlyList<BotResponse> notices)
+    {
+        var language = context.Language;
 
         var rows = active
             .Select(category => new[]
@@ -346,6 +531,14 @@ internal sealed class ExpenseConversation(
             NextPayload = payload.Serialize(),
         };
     }
+
+    private ConversationTurn NoCategories(ConversationContext context) =>
+        new([BotResponse.Message(
+            messages.Get(context.Language, MessageKeys.ExpenseNoCategories),
+            menu.ReplyKeyboard(context.Language))])
+        {
+            Completed = true,
+        };
 
     private ConversationTurn DatePrompt(
         ConversationContext context, ExpensePayload payload, IReadOnlyList<BotResponse> notices)
