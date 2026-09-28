@@ -6,6 +6,7 @@ using MyBudget.Application.Abstractions.Persistence;
 using MyBudget.Application.Budgets;
 using MyBudget.Application.Categories;
 using MyBudget.Application.Dates;
+using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
@@ -40,6 +41,7 @@ public sealed class ApplicationServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IUserRepository>());
         services.AddScoped(_ => Substitute.For<ICategoryRepository>());
         services.AddScoped(_ => Substitute.For<IBudgetRepository>());
+        services.AddScoped(_ => Substitute.For<IExpenseRepository>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddSingleton(TimeProvider.System);
 
@@ -66,6 +68,7 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<IUserService>().Should().BeOfType<UserService>();
         scope.ServiceProvider.GetRequiredService<ICategoryService>().Should().BeOfType<CategoryService>();
         scope.ServiceProvider.GetRequiredService<IBudgetService>().Should().BeOfType<BudgetService>();
+        scope.ServiceProvider.GetRequiredService<IExpenseService>().Should().BeOfType<ExpenseService>();
         scope.ServiceProvider.GetRequiredService<IUserLocalDate>().Should().BeOfType<UserLocalDate>();
     }
 

@@ -5,6 +5,7 @@ using MyBudget.Application.Budgets;
 using MyBudget.Application.Categories;
 using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
+using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
@@ -44,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBudgetService, BudgetService>();
+        services.AddScoped<IExpenseService, ExpenseService>();
 
         return services;
     }
