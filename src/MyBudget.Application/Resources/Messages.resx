@@ -220,6 +220,12 @@
   <data name="Expense.DeletedConfirm" xml:space="preserve">
     <value>🗑️ Gasto eliminado.</value>
   </data>
+  <data name="Expense.LearnKeywordPrompt" xml:space="preserve">
+    <value>No reconocí «{0}». ¿Lo guardo como alias de {1}? Así lo reconozco la próxima vez.</value>
+  </data>
+  <data name="Expense.LearnKeywordSaved" xml:space="preserve">
+    <value>✅ Guardé «{0}» como alias de {1}.</value>
+  </data>
 
   <data name="Buttons.Skip" xml:space="preserve">
     <value>⏭️ Omitir</value>
@@ -235,6 +241,9 @@
   </data>
   <data name="Buttons.Back" xml:space="preserve">
     <value>↩️ Volver</value>
+  </data>
+  <data name="Buttons.SaveAlias" xml:space="preserve">
+    <value>✅ Guardar alias</value>
   </data>
 
   <data name="Category.ListHeader" xml:space="preserve">

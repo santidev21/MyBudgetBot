@@ -82,12 +82,15 @@ public static class MessageKeys
     public const string ExpenseDetailHeader = "Expense.DetailHeader";
     public const string ExpenseDeleteConfirm = "Expense.DeleteConfirm";
     public const string ExpenseDeletedConfirm = "Expense.DeletedConfirm";
+    public const string ExpenseLearnKeywordPrompt = "Expense.LearnKeywordPrompt";
+    public const string ExpenseLearnKeywordSaved = "Expense.LearnKeywordSaved";
 
     public const string ButtonSkip = "Buttons.Skip";
     public const string ButtonDelete = "Buttons.Delete";
     public const string ButtonToday = "Buttons.Today";
     public const string ButtonYesterday = "Buttons.Yesterday";
     public const string ButtonBack = "Buttons.Back";
+    public const string ButtonSaveAlias = "Buttons.SaveAlias";
 
     public const string CategoryListHeader = "Category.ListHeader";
     public const string CategoryListEmpty = "Category.ListEmpty";
@@ -228,11 +231,14 @@ public static class MessageKeys
         ExpenseDetailHeader,
         ExpenseDeleteConfirm,
         ExpenseDeletedConfirm,
+        ExpenseLearnKeywordPrompt,
+        ExpenseLearnKeywordSaved,
         ButtonSkip,
         ButtonDelete,
         ButtonToday,
         ButtonYesterday,
         ButtonBack,
+        ButtonSaveAlias,
         CategoryListHeader,
         CategoryListEmpty,
         CategoryButtonNew,
