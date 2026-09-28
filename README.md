@@ -26,7 +26,7 @@ later as data, not as a rewrite. Today there is exactly one of each.
 
 ## Features
 
-**Implemented (Phase 0–2)**
+**Implemented (Phase 0–3)**
 
 - Domain model: users, categories, aliases, monthly budgets, allocations, expenses.
 - PostgreSQL schema with CHECK, UNIQUE and composite FOREIGN KEY constraints.
@@ -44,6 +44,14 @@ later as data, not as a rewrite. Today there is exactly one of each.
   `25 de septiembre de 2026`.
 - **Localization catalog** with the language passed explicitly, a Spanish fallback, and a
   build-failing test if a key is missing.
+- **Telegram pipeline**: webhook with dual secret validation (unguessable path plus the
+  secret header, both constant-time), an idempotency inbox, an allowlist that fails closed,
+  private-chat-only enforcement, stale-update rejection, and a per-user PostgreSQL advisory
+  lock so concurrent updates cannot interleave.
+- **Conversation state in PostgreSQL**, not in memory: an interrupted flow survives a restart
+  or a deploy, and an abandoned one expires instead of being resumed days later.
+- **Onboarding, `/start`, `/help`, `/cancel` and a persistent Spanish menu.** Long polling for
+  local development, sharing the exact dispatcher the webhook uses.
 - Structured JSON logging (Serilog), liveness/readiness/health endpoints.
 - Startup configuration validation: a bad time zone or language aborts boot with a clear
   message instead of breaking the first user.
@@ -51,15 +59,14 @@ later as data, not as a rewrite. Today there is exactly one of each.
   is DML-only).
 - Docker Compose deployment aligned with the `vps-gateway` standard, including the
   versioned gateway site config that restricts health endpoints and the webhook.
-- 405 tests: domain units, money and date corpora with property-based tests, localization
-  guards, application contract tests, architecture tests, migration guardrails and
-  PostgreSQL integration tests.
+- 474 tests: domain units, money and date corpora with property-based tests, localization
+  guards, Telegram pipeline and conversation tests, application contract tests, architecture
+  tests, migration guardrails and PostgreSQL integration tests.
 
 **Planned**
 
 | Phase | Scope |
 |---|---|
-| 3 | Telegram webhook, update idempotency, user identity, conversation state, onboarding |
 | 4 | Category and monthly budget management |
 | 5 | Expense entry (guided and compact), edit, delete, history |
 | 6 | Deterministic category matching and keyword learning |
@@ -144,20 +151,33 @@ deliberate action.
 
 ## Telegram architecture
 
-Designed in [`docs/TECHNICAL-DESIGN.md`](docs/TECHNICAL-DESIGN.md), implemented in Phase 3:
-
 ```
-POST /telegram/webhook/{secret}  ->  validate secret header
-                                 ->  inbox row (idempotency, INSERT ... ON CONFLICT DO NOTHING)
-                                 ->  allowlist + private-chat check, stale-update check
+POST /telegram/webhook/{secret}  ->  validate secret header (constant time)
+                                 ->  inbox row (idempotency, ON CONFLICT)
+                                 ->  allowlist + private chat + stale-update gates
                                  ->  resolve user by telegram_user_id
                                  ->  pg advisory lock per user (serialises concurrent updates)
-                                 ->  route: conversation | command | compact expense
-                                 ->  send reply after commit
+                                 ->  route: conversation | command | menu
+                                 ->  acknowledge, send, mark processed
 ```
 
-Conversation state is stored in PostgreSQL, not in memory, so it survives restarts and
-deployments.
+Three decisions carry the robustness:
+
+- **The reply is sent after the state change is committed.** A crash can lose a reply, but it
+  can never half-write an expense.
+- **Conversation state lives in PostgreSQL.** A deploy mid-flow does not strand the user, and
+  an abandoned conversation expires rather than being resumed days later.
+- **Nothing is trusted from callback data.** Buttons carry short tokens, and the state they
+  refer to is re-loaded and ownership-checked before anything happens.
+
+Registering the bot is an explicit step, never something that happens at startup:
+
+```bash
+dotnet run --project src/MyBudget.Api -- --configure-telegram
+```
+
+That sets the command menu (Spanish, via Telegram's own `language_code`) and the webhook.
+`--delete-webhook` removes it, which is required before using `TELEGRAM_USE_POLLING=true`.
 
 ## Money handling
 

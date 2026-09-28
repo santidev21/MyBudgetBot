@@ -62,7 +62,14 @@ docs/TECHNICAL-DESIGN.md
 | Apply migrations | `dotnet dotnet-ef database update --project src/MyBudget.Infrastructure --startup-project src/MyBudget.Infrastructure` |
 | Local stack | `docker compose -f docker-compose.yml -f docker-compose.local.yml up --build` |
 | Local API port | `http://localhost:8091` (8080 and 8090 are used by other projects) |
+| Register the bot in Telegram | `dotnet run --project src/MyBudget.Api -- --configure-telegram` |
+| Remove the webhook | `dotnet run --project src/MyBudget.Api -- --delete-webhook` |
 | Deploy on VPS | `cd /opt/mybudget && ./scripts/deploy.sh deploy` |
+
+Local chat development: set `TELEGRAM_BOT_TOKEN`, `ALLOWED_TELEGRAM_USER_IDS` and
+`TELEGRAM_USE_POLLING=true`, then delete the webhook first — Telegram allows webhooks or
+polling, never both. Polling reuses the same dispatcher as the webhook, so what you test
+locally is what ships.
 
 Addresses: containers `mybudget` / `mybudget-db` / `mybudget-migrator`; networks
 `mybudget-net` (external, gateway) and `mybudget-internal-net` (internal, database only).
@@ -116,11 +123,24 @@ Database and application ports are never published in production.
   neutral file is what removes the satellite-assembly failure mode.
 - **Parsing stages are `internal` but tested directly** through `InternalsVisibleTo`. A
   defect in separator handling must be findable without driving the whole pipeline.
+- **An inbox row that is `processed` or `ignored` is settled.** Only `failed` reopens a
+  claim. Treating `ignored` as claimable would act on an update that was skipped on purpose
+  (stale, wrong chat, not allowlisted).
+- **`ExecuteDeleteAsync` bypasses the change tracker.** Bulk deletes (inbox purge) run from
+  their own scope; reusing a context afterwards trips an identity conflict.
+- **Conversation payloads are `jsonb`, so PostgreSQL canonicalises them.** Compare them as
+  data, never as strings: `{"step":1}` comes back as `{"step": 1}`.
+- **`Options.Create` is ambiguous inside files that import `MyBudget.Telegram.Options`.**
+  Qualify it as `Microsoft.Extensions.Options.Options.Create`.
+- **`Update.Id` is an `int`** in Telegram.Bot. Widen it to `long` for the inbox, which is a
+  bigint.
 
 ## Status
 
-Phase 0–2 complete: domain, schema, persistence, Docker, CI, money parsing and formatting,
-date parsing, compact expense extraction and the message catalog. Money code is at 97,5 %
-line coverage with property-based tests. 405 tests, all green. Next: Phase 3 (Telegram
-plumbing: webhook, idempotency, identity, conversation state, onboarding). The Telegram
-interface does not exist yet.
+Phase 0–3 complete: domain, schema, persistence, Docker, CI, money and date parsing, the
+message catalog, and the full Telegram pipeline (webhook with dual secret validation,
+idempotent inbox, allowlist, per-user advisory lock, database-backed conversation state,
+onboarding, commands, menu). 474 tests, all green. Money code is at 97,5 % line coverage.
+
+Next: Phase 4 (category and monthly budget management). The bot answers `/start`, `/help`
+and `/cancel`; the menu items reply that they are not ready yet.

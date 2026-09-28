@@ -216,7 +216,17 @@ about.
 `v1|action|<pendingActionId>`. The draft lives in `pending_actions` and is re-loaded,
 ownership-checked and consumed exactly once
 (`UPDATE ... WHERE consumed_at IS NULL ... RETURNING *`). No amount, category or date is
-ever trusted from a callback.
+ever trusted from a callback. `pending_actions` arrives with the confirmation flow in Phase 5;
+Phase 3 persists only `conversation_states`.
+
+Two behaviours settled during implementation:
+
+- **`processed` and `ignored` are both terminal inbox states.** Only `failed` reopens a
+  claim. Treating `ignored` as claimable would act on an update that was skipped on purpose.
+- **A callback is acknowledged immediately, without a toast.** Telegram accepts exactly one
+  answer per query, and stopping the spinner promptly matters more than a decorative message;
+  the substantive reply is the message that follows. A `CallbackAcknowledgement` field was
+  designed, implemented, and then removed as dead configuration.
 
 ## 7. Monetary parsing architecture
 
@@ -420,7 +430,7 @@ test proves the ambient culture is ignored.
 | **0 Foundation** | Solution, build settings, central packages, Serilog, options validation, health endpoints, Docker, least-privilege roles, `--migrate`, Testcontainers fixture | Stack runs; healthchecks green; CI green — **done** |
 | **1 Domain + persistence** | Entities, EF configurations, raw-SQL composite FKs, repositories, interceptor | Integration tests for constraints, user isolation, historical budgets — **done** |
 | **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code — **done** (97,5 % money, 100 % dates) |
-| **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row |
+| **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row — **done** |
 | **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default |
@@ -532,6 +542,17 @@ reload. That config is versioned in this repository because it decides this serv
 external exposure: only `/health/live` is public, `/health/ready` and `/health` are
 restricted to private ranges, and the webhook is POST-only, unlogged and rate limited.
 
+Registering the bot with Telegram is a separate, explicit step:
+
+```bash
+dotnet run --project src/MyBudget.Api -- --configure-telegram
+```
+
+It sets the Spanish command menu and the webhook. It is never done at startup: calling
+`setWebhook` on every boot, with `dropPendingUpdates`, would silently discard updates the
+user is waiting on. Request logging is downgraded for the webhook path so the secret URL
+segment does not end up in access logs.
+
 Observability is deliberately limited to structured JSON logs plus health endpoints.
 OpenTelemetry and Prometheus are out of scope for one VPS and one user.
 
@@ -560,11 +581,13 @@ Rules:
   better.
 
 Coverage today: money parsing and formatting (corpus plus FsCheck round-trip and
-never-throws properties), date parsing, the message catalog, constraints, cross-user
-integrity (all four composite FKs), user isolation per repository, historical budget
-immutability, cascade and non-deletion behaviour, user erasure, orphan removal, migration
-guardrails, timestamp maintenance, allocation persistence, localization option validation,
-architecture and repository contract tests. 405 tests, all green.
+never-throws properties), date parsing, the message catalog, the Telegram pipeline and its
+gates, conversation routing and onboarding, the update inbox, conversation state, the
+per-user lock, constraints, cross-user integrity (all four composite FKs), user isolation per
+repository, historical budget immutability, cascade and non-deletion behaviour, user erasure,
+orphan removal, migration guardrails, timestamp maintenance, allocation persistence,
+localization option validation, architecture and repository contract tests.
+474 tests, all green.
 
 ## 17. Backup strategy
 
