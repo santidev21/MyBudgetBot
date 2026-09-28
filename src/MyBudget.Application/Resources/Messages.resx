@@ -151,6 +151,64 @@
   <data name="Expense.CategoryNone" xml:space="preserve">
     <value>No reconocí la categoría. ¿Cuál eliges?</value>
   </data>
+  <data name="Expense.DescriptionPrompt" xml:space="preserve">
+    <value>¿En qué fue? Escríbeme una descripción o toca «Omitir».</value>
+  </data>
+  <data name="Expense.CategoryPrompt" xml:space="preserve">
+    <value>¿A qué categoría corresponde?</value>
+  </data>
+  <data name="Expense.NoCategories" xml:space="preserve">
+    <value>Todavía no tienes categorías activas. Crea una en 🏷️ Categorías.</value>
+  </data>
+  <data name="Expense.ConfirmationAmount" xml:space="preserve">
+    <value>Monto: {0}</value>
+  </data>
+  <data name="Expense.ConfirmationDescription" xml:space="preserve">
+    <value>Descripción: {0}</value>
+  </data>
+  <data name="Expense.ConfirmationCategory" xml:space="preserve">
+    <value>Categoría: {0}</value>
+  </data>
+  <data name="Expense.ConfirmationDate" xml:space="preserve">
+    <value>Fecha: {0}</value>
+  </data>
+  <data name="Expense.NoDescription" xml:space="preserve">
+    <value>Sin descripción</value>
+  </data>
+  <data name="Expense.Expired" xml:space="preserve">
+    <value>Esa confirmación ya venció o ya se registró.</value>
+  </data>
+  <data name="Expense.NotFound" xml:space="preserve">
+    <value>No encontré ese gasto.</value>
+  </data>
+  <data name="Expense.Undone" xml:space="preserve">
+    <value>↩️ Listo, quité el registro.</value>
+  </data>
+  <data name="Expense.Deleted" xml:space="preserve">
+    <value>🗑️ Gasto eliminado.</value>
+  </data>
+  <data name="Expense.ListHeader" xml:space="preserve">
+    <value>Gastos de {0}:</value>
+  </data>
+  <data name="Expense.ListEmpty" xml:space="preserve">
+    <value>No hay gastos registrados este mes.</value>
+  </data>
+  <data name="Expense.DetailHeader" xml:space="preserve">
+    <value>Gasto:</value>
+  </data>
+  <data name="Expense.DeleteConfirm" xml:space="preserve">
+    <value>¿Elimino este gasto? No se puede deshacer.</value>
+  </data>
+  <data name="Expense.DeletedConfirm" xml:space="preserve">
+    <value>🗑️ Gasto eliminado.</value>
+  </data>
+
+  <data name="Buttons.Skip" xml:space="preserve">
+    <value>⏭️ Omitir</value>
+  </data>
+  <data name="Buttons.Delete" xml:space="preserve">
+    <value>🗑️ Eliminar</value>
+  </data>
 
   <data name="Category.ListHeader" xml:space="preserve">
     <value>Estas son tus categorías. Toca una para administrarla.</value>

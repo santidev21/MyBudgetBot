@@ -59,6 +59,26 @@ public static class MessageKeys
     public const string ExpenseCategorySuggestion = "Expense.CategorySuggestion";
     public const string ExpenseCategoryAmbiguous = "Expense.CategoryAmbiguous";
     public const string ExpenseCategoryNone = "Expense.CategoryNone";
+    public const string ExpenseDescriptionPrompt = "Expense.DescriptionPrompt";
+    public const string ExpenseCategoryPrompt = "Expense.CategoryPrompt";
+    public const string ExpenseNoCategories = "Expense.NoCategories";
+    public const string ExpenseConfirmationAmount = "Expense.ConfirmationAmount";
+    public const string ExpenseConfirmationDescription = "Expense.ConfirmationDescription";
+    public const string ExpenseConfirmationCategory = "Expense.ConfirmationCategory";
+    public const string ExpenseConfirmationDate = "Expense.ConfirmationDate";
+    public const string ExpenseNoDescription = "Expense.NoDescription";
+    public const string ExpenseExpired = "Expense.Expired";
+    public const string ExpenseNotFound = "Expense.NotFound";
+    public const string ExpenseUndone = "Expense.Undone";
+    public const string ExpenseDeleted = "Expense.Deleted";
+    public const string ExpenseListHeader = "Expense.ListHeader";
+    public const string ExpenseListEmpty = "Expense.ListEmpty";
+    public const string ExpenseDetailHeader = "Expense.DetailHeader";
+    public const string ExpenseDeleteConfirm = "Expense.DeleteConfirm";
+    public const string ExpenseDeletedConfirm = "Expense.DeletedConfirm";
+
+    public const string ButtonSkip = "Buttons.Skip";
+    public const string ButtonDelete = "Buttons.Delete";
 
     public const string CategoryListHeader = "Category.ListHeader";
     public const string CategoryListEmpty = "Category.ListEmpty";
@@ -176,6 +196,25 @@ public static class MessageKeys
         ExpenseCategorySuggestion,
         ExpenseCategoryAmbiguous,
         ExpenseCategoryNone,
+        ExpenseDescriptionPrompt,
+        ExpenseCategoryPrompt,
+        ExpenseNoCategories,
+        ExpenseConfirmationAmount,
+        ExpenseConfirmationDescription,
+        ExpenseConfirmationCategory,
+        ExpenseConfirmationDate,
+        ExpenseNoDescription,
+        ExpenseExpired,
+        ExpenseNotFound,
+        ExpenseUndone,
+        ExpenseDeleted,
+        ExpenseListHeader,
+        ExpenseListEmpty,
+        ExpenseDetailHeader,
+        ExpenseDeleteConfirm,
+        ExpenseDeletedConfirm,
+        ButtonSkip,
+        ButtonDelete,
         CategoryListHeader,
         CategoryListEmpty,
         CategoryButtonNew,
