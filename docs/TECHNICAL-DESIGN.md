@@ -389,6 +389,14 @@ conflict prompt if the term already belongs elsewhere.
 costs two seconds. When enabled it is restricted to a single-token query with a unique
 distance-1 candidate, and ties fall back to `Ambiguous`.
 
+Implementation notes. Signals are additive per query/keyword pair and the category takes its best
+term; the name bonus is applied to the name term before that maximum, and summing across keywords
+would let a category with many aliases buy a score. The partial-overlap term keeps its 0.20 floor
+even at zero overlap, which is what lets a lone fuzzy match (0.20 + 0.45) reach the 0.65
+threshold; scores are compared with a small epsilon for that reason. The unrecognized description
+that `None` offers to learn travels in the conversation payload and is only stored after the user
+picks a category, and the conflict prompt reuses the alias screen's wording.
+
 ## 10. Localization architecture
 
 `IUserMessages.Get(language, key, args)` over `.resx` resources, with the language passed
@@ -464,7 +472,7 @@ test proves the ambient culture is ignored.
 | **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row — **done** |
 | **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests — **done** |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests — **done** |
-| **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default |
+| **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout |
 | **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Not started without a real need |
@@ -619,8 +627,9 @@ the category and budget conversation flows, the guided and compact expense flows
 consume-once confirmation, expense persistence, constraints, cross-user integrity (all four
 composite FKs), user isolation per repository, historical budget immutability, cascade and
 non-deletion behaviour, user erasure, orphan removal, migration guardrails, timestamp
-maintenance, allocation persistence, localization option validation, architecture and repository
-contract tests. 632 tests, all green.
+maintenance, allocation persistence, localization and matching option validation, the category
+matcher corpus including ambiguity and the fuzzy default, the keyword-learning flow with its
+conflict prompt, architecture and repository contract tests. 671 tests, all green.
 
 ## 17. Backup strategy
 

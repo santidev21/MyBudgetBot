@@ -173,6 +173,18 @@ Database and application ports are never published in production.
 - **An empty listing must still carry the notices it was given.** The month list reported
   "nothing to show" and dropped the "deleted" notice when a delete emptied the month. Any
   builder that short-circuits has to keep its prefix responses.
+- **The matcher's 0.20 partial-overlap floor is load-bearing.** It is what lets a lone fuzzy match
+  (0.20 + 0.45) reach the 0.65 threshold; without it, fuzzy would never fire and the signal table
+  would quietly become dead code. Scores are compared with a small epsilon because that threshold
+  is the sum of two binary fractions.
+- **Signals are additive per query/keyword pair, then the category takes its best term.** The
+  category-name bonus is applied to the name term before that maximum, so a name that ties an
+  alias wins by 0.05. Summing across a category's aliases would let a category with many keywords
+  buy a score it did not earn.
+- **A `None` result is the only path that carries a learn term.** The unrecognized description
+  travels in the conversation payload and the offer is shown only after the user picks a category,
+  so the flow never asks to save a term to a category that is not chosen yet. The conflict prompt
+  reuses the alias screen's wording rather than a second copy.
 
 ## Status and handoff
 
@@ -186,16 +198,17 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 3  Telegram plumbing: webhook, inbox, allowlist, lock, conversations, onboarding
 [x] Phase 4  Categories and monthly budgets          <-- done
 [x] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- done
-[ ] Phase 6  Category matching and keyword learning   <-- next
-[ ] Phase 7  Summary and statistics
+[x] Phase 6  Category matching and keyword learning   <-- done
+[ ] Phase 7  Summary and statistics                   <-- next
 [ ] Phase 8  Hardening: verified backups, runbook, rate limiting
 [ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
 ```
 
 **Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
 account (in production over the webhook, in development over polling) it manages categories and
-monthly budgets, records expenses both guided and compact, edits and deletes them, and undoes a
-registration. 632 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
+monthly budgets, records expenses both guided and compact, suggests the category from the
+description, lets the user teach it a keyword, edits and deletes expenses, and undoes a
+registration. 671 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -237,15 +250,78 @@ Deferred: date-range history with keyset pagination (design §11.5). The list sh
 month only; ranges and paging are a follow-up, and the statistics work in Phase 7 will need
 period queries anyway.
 
-### Phase 6 scope — category matching and keyword learning
+### Phase 6 delivered — category matching and keyword learning
 
-Next: the deterministic matcher described in `docs/TECHNICAL-DESIGN.md` §9. It scores the user's
-aliases and category names against a free-text description, and the entry confirmation uses the
-suggestion: `Matched` auto-selects with a confirmation, `Ambiguous` asks which category, `None`
-offers to save the term as a keyword. Fuzzy matching stays off by default
-(`CategoryMatching:EnableFuzzy=false`). Exit criteria: the matcher corpus including ambiguity,
-and the "learn this keyword" flow with its conflict prompt. The `categories` alias screens that
-store the keywords already ship; Phase 6 is what reads them.
+The deterministic matcher of `docs/TECHNICAL-DESIGN.md` §9, wired into the expense confirmation:
+
+- `ICategoryMatcher` lives in `MyBudget.Application/Matching` and is pure: the caller passes
+  category names and aliases, and the matcher returns `Matched`, `Ambiguous` or `None`. No EF,
+  no Telegram, no clock.
+- Normalisation is NFKC, accents stripped, lowercase, punctuation to spaces, whitespace collapsed
+  and leading articles and prepositions dropped. Singular/plural matches for tokens of four or
+  more characters are handled at token-comparison time, never by mutating display text.
+- Signals and thresholds are those of §9: exact 1.00, phrase 0.85 + 0.05 × coverage (cap 0.95),
+  full coverage ≥ 2 tokens 0.80, partial overlap 0.50 × ratio + 0.20, category-name bonus +0.05,
+  and a fuzzy token 0.45. Selection: top below `MinimumScore` (0.65) is `None`, a top two closer
+  than `AmbiguityMargin` (0.15) is `Ambiguous`, otherwise `Matched`.
+- Fuzzy ships **off** by default (`CategoryMatching:EnableFuzzy=false`), is restricted to a
+  single-token query with a distance-1 candidate of at least five characters, and ties fall back
+  to `Ambiguous`. Options follow the `LocalizationOptions` pattern with a validator and
+  `ValidateOnStart`.
+- The entry confirmation uses the suggestion: `Matched` pre-selects the category and says so,
+  `Ambiguous` asks which category, and `None` asks and then offers to save the typed description
+  as a keyword for the chosen category — showing exactly what will be stored, and raising the
+  alias conflict prompt when the term already belongs elsewhere. `CategorizationSource` records
+  `Matched`, `Ambiguous` or `Manual` accordingly.
+
+Exit criteria met: the matcher corpus including ambiguity, fuzzy off by default, and the
+learn-keyword flow with its conflict prompt, plus conversation tests for each path.
+
+### Prompt for the next session — Phase 7 (summary and statistics)
+
+Paste this to start the next session:
+
+> Trabajamos en `/home/santidev21/Dev/MyBudget-bot`, un bot de presupuesto personal para
+> Telegram (.NET 8 + PostgreSQL, Clean Architecture, modular monolith).
+>
+> Antes de tocar nada:
+> 1. Lee `AGENTS.md` completo y `docs/TECHNICAL-DESIGN.md` (§11.4 Resumen, §11.5 Historial,
+>    §11.8 Estadísticas, §12 Phase 7, §16 testing).
+> 2. Mira `git log --oneline`.
+> 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
+>
+> Contexto: fases 0–6 completas, 671 tests verdes, build sin warnings, `dotnet format` limpio.
+> El bot ya registra gastos (guiado y compacto), sugiere categoría con el matcher determinista
+> y aprende keywords. `.env` local con bot de DEV en polling, base en `127.0.0.1:5435`; el VPS
+> con webhook está desplegado.
+>
+> Haz la **Phase 7: resumen y estadísticas**. Alcance:
+> - `📊 Resumen` mensual: total, uso por categoría con barras de texto, y navegación de mes
+>   `[← Agosto] [Septiembre 2026] [Octubre →]` leyendo la asignación histórica de cada mes.
+> - Historial por rangos con paginación keyset en `(expense_date DESC, id DESC)`, agrupado por
+>   día (diferido de Phase 5, §11.5).
+> - Estadísticas: por categoría con participación, gasto diario, gastos más grandes, promedio
+>   diario, y comparación de periodos que advierte cuando un periodo está incompleto.
+>
+> Reglas que no se rompen (resumen): dinero `long` exacto; `ExpenseDate` es `DateOnly` en hora
+> local; ownership con `userId` primero y FKs compuestas; la historia no se borra (desactivar);
+> nada de IA para categorizar; texto de usuario sólo en `Messages.resx` + `MessageKeys`; los
+> casos de uso en Application; las conversaciones de Telegram sólo recogen input y renderizan.
+>
+> Foco:
+> - Las consultas de periodo y las sumas pertenecen a Application (o a un read model en SQL),
+>   nunca a la conversación. Al personal scale el total se deriva con `SUM`, jamás se almacena.
+> - Un mes sin presupuesto muestra uso `—`, nunca una división por cero; sobregirar se muestra,
+>   no se bloquea.
+> - Un periodo incompleto (mes en curso) debe decirlo en la comparación.
+> - Barras de texto primero; los gráficos son Phase 9.
+>
+> Trabaja en pasos cortos: implementa una cosa, corre
+> `dotnet build MyBudget.sln && dotnet test MyBudget.sln && dotnet format MyBudget.sln --verify-no-changes`,
+> muéstrame el resultado y sigue. No acumules turnos larguísimos.
+>
+> Criterio de salida: snapshot tests de los mensajes renderizados y consultas de periodo
+> cubiertas contra PostgreSQL real.
 
 ### Commands to verify any change
 

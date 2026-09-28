@@ -6,10 +6,10 @@ Built as a production-quality .NET 8 modular monolith — clean layering, a real
 relational model with database-enforced integrity, deterministic money parsing, and a
 deployment that matches the rest of the `vps-gateway` estate.
 
-> **Status: Phase 0–1 complete.** The domain model, PostgreSQL schema, constraints,
-> repositories, health checks, structured logging, Docker deployment and test suite are
-> in place. The Telegram interface is **not wired up yet** (Phase 3). The service
-> currently exposes health endpoints and the migration entrypoint only.
+> **Status: Phase 0–6 complete.** The domain model, PostgreSQL schema, constraints,
+> repositories, health checks, structured logging, Docker deployment, the full Telegram
+> interface, category and monthly-budget management, guided and compact expense entry, and
+> deterministic category matching with keyword learning are in place. 671 tests green.
 
 ---
 
@@ -26,7 +26,7 @@ later as data, not as a rewrite. Today there is exactly one of each.
 
 ## Features
 
-**Implemented (Phase 0–3)**
+**Implemented (Phase 0–6)**
 
 - Domain model: users, categories, aliases, monthly budgets, allocations, expenses.
 - PostgreSQL schema with CHECK, UNIQUE and composite FOREIGN KEY constraints.
@@ -59,17 +59,26 @@ later as data, not as a rewrite. Today there is exactly one of each.
   is DML-only).
 - Docker Compose deployment aligned with the `vps-gateway` standard, including the
   versioned gateway site config that restricts health endpoints and the webhook.
-- 502 tests: domain units, money and date corpora with property-based tests, localization
-  guards, Telegram pipeline and conversation tests, application contract tests, architecture
-  tests, migration guardrails and PostgreSQL integration tests.
+- **Category and monthly budget management:** create, rename, change the icon, activate and
+  deactivate, add and remove keywords, set an allocation per category, and copy the previous
+  month's budget on request. Past months are immutable in the product; deletion is not offered,
+  deactivation is, and reusing a deactivated name reactivates it with its history intact.
+- **Guided and compact expense entry**, a consume-once confirmation stored server-side, a listing
+  with detail, edit and delete, and a global undo on the registration reply.
+- **Deterministic category matching** against the user's category names and keywords, with an
+  `Ambiguous` outcome that asks instead of guessing, fuzzy matching off by default, and a
+  keyword-learning offer that shows exactly what will be stored and warns on a conflict.
+- 671 tests: domain units, money and date corpora with property-based tests, localization
+  guards, Telegram pipeline and conversation tests, matcher corpus, application contract tests,
+  architecture tests, migration guardrails and PostgreSQL integration tests.
 
 **Planned**
 
 | Phase | Scope |
 |---|---|
-| 4 | Category and monthly budget management |
-| 5 | Expense entry (guided and compact), edit, delete, history |
-| 6 | Deterministic category matching and keyword learning |
+| ~~4~~ | ~~Category and monthly budget management~~ *(done)* |
+| ~~5~~ | ~~Expense entry (guided and compact), edit, delete, history~~ *(done)* |
+| ~~6~~ | ~~Deterministic category matching and keyword learning~~ *(done)* |
 | 7 | Monthly summary and statistics |
 | 8 | Backups with verification, runbook, rate limiting |
 | 9 | Optional: charts, recurring expenses, CSV export/import |
@@ -328,10 +337,10 @@ deployments happen automatically on push to `main`.
 
 ## Roadmap
 
-Recurring expenses, income tracking, savings goals, CSV export/import, a web dashboard,
-scheduled Telegram summaries and (only if ever justified) AI-assisted categorization.
-None of these are required for the product to be useful, and none are implemented
-prematurely. The schema and interfaces do not block any of them.
+Recurring expenses, income tracking, savings goals, CSV export/import, a web dashboard and
+scheduled Telegram summaries. None of these are required for the product to be useful, and none
+are implemented prematurely. Categorization stays deterministic; there is no AI in that path.
+The schema and interfaces do not block any of the rest.
 
 ## License
 
