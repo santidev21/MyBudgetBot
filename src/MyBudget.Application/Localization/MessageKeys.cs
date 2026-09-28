@@ -60,6 +60,78 @@ public static class MessageKeys
     public const string ExpenseCategoryAmbiguous = "Expense.CategoryAmbiguous";
     public const string ExpenseCategoryNone = "Expense.CategoryNone";
 
+    public const string CategoryListHeader = "Category.ListHeader";
+    public const string CategoryListEmpty = "Category.ListEmpty";
+    public const string CategoryButtonNew = "Category.ButtonNew";
+    public const string CategoryButtonBudget = "Category.ButtonBudget";
+    public const string CategoryButtonBack = "Category.ButtonBack";
+    public const string CategoryButtonRename = "Category.ButtonRename";
+    public const string CategoryButtonIcon = "Category.ButtonIcon";
+    public const string CategoryButtonAliases = "Category.ButtonAliases";
+    public const string CategoryButtonDeactivate = "Category.ButtonDeactivate";
+    public const string CategoryButtonActivate = "Category.ButtonActivate";
+    public const string CategoryButtonSkip = "Category.ButtonSkip";
+    public const string CategoryInactiveMarker = "Category.InactiveMarker";
+    public const string CategoryStatusInactive = "Category.StatusInactive";
+    public const string CategoryDetailHeader = "Category.DetailHeader";
+    public const string CategoryNamePrompt = "Category.NamePrompt";
+    public const string CategoryNameInvalid = "Category.NameInvalid";
+    public const string CategoryNameTaken = "Category.NameTaken";
+    public const string CategoryCreated = "Category.Created";
+    public const string CategoryReactivated = "Category.Reactivated";
+    public const string CategoryRenamePrompt = "Category.RenamePrompt";
+    public const string CategoryRenamed = "Category.Renamed";
+    public const string CategoryIconPrompt = "Category.IconPrompt";
+    public const string CategoryIconChangePrompt = "Category.IconChangePrompt";
+    public const string CategoryIconInvalid = "Category.IconInvalid";
+    public const string CategoryIconChanged = "Category.IconChanged";
+    public const string CategoryDeactivated = "Category.Deactivated";
+    public const string CategoryActivated = "Category.Activated";
+    public const string CategoryNotFound = "Category.NotFound";
+
+    public const string AliasListHeader = "Alias.ListHeader";
+    public const string AliasListEmpty = "Alias.ListEmpty";
+    public const string AliasButtonAdd = "Alias.ButtonAdd";
+    public const string AliasButtonRemovePrefix = "Alias.ButtonRemovePrefix";
+    public const string AliasPrompt = "Alias.Prompt";
+    public const string AliasInvalid = "Alias.Invalid";
+    public const string AliasAdded = "Alias.Added";
+    public const string AliasDuplicate = "Alias.Duplicate";
+    public const string AliasRemoved = "Alias.Removed";
+    public const string AliasConflict = "Alias.Conflict";
+    public const string AliasConflictHint = "Alias.ConflictHint";
+    public const string AliasButtonAddAnyway = "Alias.ButtonAddAnyway";
+
+    public const string BudgetTitle = "Budget.Title";
+    public const string BudgetEmpty = "Budget.Empty";
+    public const string BudgetLine = "Budget.Line";
+    public const string BudgetTotal = "Budget.Total";
+    public const string BudgetButtonAssign = "Budget.ButtonAssign";
+    public const string BudgetButtonCopy = "Budget.ButtonCopy";
+    public const string BudgetChooseCategory = "Budget.ChooseCategory";
+    public const string BudgetAmountPrompt = "Budget.AmountPrompt";
+    public const string BudgetAmountInvalid = "Budget.AmountInvalid";
+    public const string BudgetSaved = "Budget.Saved";
+    public const string BudgetCopied = "Budget.Copied";
+    public const string BudgetNoPrevious = "Budget.NoPrevious";
+    public const string BudgetPastMonth = "Budget.PastMonth";
+    public const string BudgetCategoryInactive = "Budget.CategoryInactive";
+    public const string BudgetCategoryNotFound = "Budget.CategoryNotFound";
+    public const string BudgetNoCategories = "Budget.NoCategories";
+
+    public const string MonthJanuary = "Month.January";
+    public const string MonthFebruary = "Month.February";
+    public const string MonthMarch = "Month.March";
+    public const string MonthApril = "Month.April";
+    public const string MonthMay = "Month.May";
+    public const string MonthJune = "Month.June";
+    public const string MonthJuly = "Month.July";
+    public const string MonthAugust = "Month.August";
+    public const string MonthSeptember = "Month.September";
+    public const string MonthOctober = "Month.October";
+    public const string MonthNovember = "Month.November";
+    public const string MonthDecember = "Month.December";
+
     /// <summary>Every key that must exist in every supported language.</summary>
     public static IReadOnlyList<string> All { get; } =
     [
@@ -104,5 +176,90 @@ public static class MessageKeys
         ExpenseCategorySuggestion,
         ExpenseCategoryAmbiguous,
         ExpenseCategoryNone,
+        CategoryListHeader,
+        CategoryListEmpty,
+        CategoryButtonNew,
+        CategoryButtonBudget,
+        CategoryButtonBack,
+        CategoryButtonRename,
+        CategoryButtonIcon,
+        CategoryButtonAliases,
+        CategoryButtonDeactivate,
+        CategoryButtonActivate,
+        CategoryButtonSkip,
+        CategoryInactiveMarker,
+        CategoryStatusInactive,
+        CategoryDetailHeader,
+        CategoryNamePrompt,
+        CategoryNameInvalid,
+        CategoryNameTaken,
+        CategoryCreated,
+        CategoryReactivated,
+        CategoryRenamePrompt,
+        CategoryRenamed,
+        CategoryIconPrompt,
+        CategoryIconChangePrompt,
+        CategoryIconInvalid,
+        CategoryIconChanged,
+        CategoryDeactivated,
+        CategoryActivated,
+        CategoryNotFound,
+        AliasListHeader,
+        AliasListEmpty,
+        AliasButtonAdd,
+        AliasButtonRemovePrefix,
+        AliasPrompt,
+        AliasInvalid,
+        AliasAdded,
+        AliasDuplicate,
+        AliasRemoved,
+        AliasConflict,
+        AliasConflictHint,
+        AliasButtonAddAnyway,
+        BudgetTitle,
+        BudgetEmpty,
+        BudgetLine,
+        BudgetTotal,
+        BudgetButtonAssign,
+        BudgetButtonCopy,
+        BudgetChooseCategory,
+        BudgetAmountPrompt,
+        BudgetAmountInvalid,
+        BudgetSaved,
+        BudgetCopied,
+        BudgetNoPrevious,
+        BudgetPastMonth,
+        BudgetCategoryInactive,
+        BudgetCategoryNotFound,
+        BudgetNoCategories,
+        MonthJanuary,
+        MonthFebruary,
+        MonthMarch,
+        MonthApril,
+        MonthMay,
+        MonthJune,
+        MonthJuly,
+        MonthAugust,
+        MonthSeptember,
+        MonthOctober,
+        MonthNovember,
+        MonthDecember,
+    ];
+
+    /// <summary>Month names in calendar order, so a period can be rendered from the catalog.</summary>
+    public static IReadOnlyList<string> Months { get; } =
+    [
+        MonthJanuary,
+        MonthFebruary,
+        MonthMarch,
+        MonthApril,
+        MonthMay,
+        MonthJune,
+        MonthJuly,
+        MonthAugust,
+        MonthSeptember,
+        MonthOctober,
+        MonthNovember,
+        MonthDecember,
     ];
 }

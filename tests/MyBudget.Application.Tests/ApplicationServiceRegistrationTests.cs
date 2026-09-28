@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MyBudget.Application;
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Budgets;
+using MyBudget.Application.Categories;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
@@ -36,7 +38,10 @@ public sealed class ApplicationServiceRegistrationTests
         // The application layer owns these contracts; their implementations live in
         // infrastructure. Substitutes keep this test about the application graph only.
         services.AddScoped(_ => Substitute.For<IUserRepository>());
+        services.AddScoped(_ => Substitute.For<ICategoryRepository>());
+        services.AddScoped(_ => Substitute.For<IBudgetRepository>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
+        services.AddSingleton(TimeProvider.System);
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -59,6 +64,9 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<ICompactExpenseParser>().Should().BeOfType<CompactExpenseParser>();
         scope.ServiceProvider.GetRequiredService<IDateParser>().Should().BeOfType<DateParser>();
         scope.ServiceProvider.GetRequiredService<IUserService>().Should().BeOfType<UserService>();
+        scope.ServiceProvider.GetRequiredService<ICategoryService>().Should().BeOfType<CategoryService>();
+        scope.ServiceProvider.GetRequiredService<IBudgetService>().Should().BeOfType<BudgetService>();
+        scope.ServiceProvider.GetRequiredService<IUserLocalDate>().Should().BeOfType<UserLocalDate>();
     }
 
     [Fact]

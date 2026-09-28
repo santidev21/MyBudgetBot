@@ -46,6 +46,13 @@ public readonly record struct MonthPeriod
 
     public bool Contains(DateOnly date) => date.Year == Year && date.Month == Month;
 
+    /// <summary>
+    /// True when this month is earlier than <paramref name="other"/>. Used by the budget rules,
+    /// which are stated in months rather than dates.
+    /// </summary>
+    public bool IsBefore(MonthPeriod other) =>
+        Year < other.Year || (Year == other.Year && Month < other.Month);
+
     /// <summary>ISO-ish representation used in logs and callback data: <c>2026-09</c>.</summary>
     public override string ToString() => $"{Year:D4}-{Month:D2}";
 }

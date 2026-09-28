@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using MyBudget.Application.Budgets;
+using MyBudget.Application.Categories;
 using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Localization;
@@ -38,7 +40,10 @@ public static class DependencyInjection
         services.AddSingleton<IMoneyParser, MoneyParser>();
         services.AddSingleton<ICompactExpenseParser, CompactExpenseParser>();
         services.AddSingleton<IDateParser, DateParser>();
+        services.AddScoped<IUserLocalDate, UserLocalDate>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IBudgetService, BudgetService>();
 
         return services;
     }

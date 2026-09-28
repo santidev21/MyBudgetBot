@@ -47,6 +47,15 @@ internal sealed class CategoryRepository(MyBudgetDbContext dbContext) : ICategor
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<BudgetCategory>> FindByAliasAsync(
+        Guid userId, string normalizedAlias, CancellationToken cancellationToken = default)
+        => await dbContext.Categories
+            .AsNoTracking()
+            .Where(category => category.UserId == userId
+                               && category.Aliases.Any(alias => alias.NormalizedAlias == normalizedAlias))
+            .OrderBy(category => category.Name)
+            .ToListAsync(cancellationToken);
+
     public Task<bool> AnyByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => dbContext.Categories.AnyAsync(category => category.UserId == userId, cancellationToken);
 

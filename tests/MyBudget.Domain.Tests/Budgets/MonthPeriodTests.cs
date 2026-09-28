@@ -89,6 +89,19 @@ public sealed class MonthPeriodTests
         new MonthPeriod(2026, 9).ToString().Should().Be("2026-09");
     }
 
+    [Theory]
+    [InlineData(2026, 8, 2026, 9, true)]
+    [InlineData(2025, 12, 2026, 1, true)]
+    [InlineData(2026, 9, 2026, 9, false)]
+    [InlineData(2026, 10, 2026, 9, false)]
+    public void IsBefore_compares_months_across_years(
+        int year, int month, int otherYear, int otherMonth, bool expected)
+    {
+        new MonthPeriod(year, month)
+            .IsBefore(new MonthPeriod(otherYear, otherMonth))
+            .Should().Be(expected);
+    }
+
     [Fact]
     public void Previous_is_not_defined_before_the_supported_range()
     {

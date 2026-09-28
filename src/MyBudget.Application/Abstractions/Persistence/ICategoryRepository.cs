@@ -19,6 +19,13 @@ public interface ICategoryRepository
     Task<BudgetCategory?> FindByNameAsync(
         Guid userId, string name, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Categories that already own the given normalized keyword. More than one is legal
+    /// (ambiguity is modelled in data), so this returns every owner for the conflict prompt.
+    /// </summary>
+    Task<IReadOnlyList<BudgetCategory>> FindByAliasAsync(
+        Guid userId, string normalizedAlias, CancellationToken cancellationToken = default);
+
     Task<bool> AnyByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
 
     void Add(BudgetCategory category);

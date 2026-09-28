@@ -151,4 +151,212 @@
   <data name="Expense.CategoryNone" xml:space="preserve">
     <value>No reconocí la categoría. ¿Cuál eliges?</value>
   </data>
+
+  <data name="Category.ListHeader" xml:space="preserve">
+    <value>Estas son tus categorías. Toca una para administrarla.</value>
+  </data>
+  <data name="Category.ListEmpty" xml:space="preserve">
+    <value>Todavía no tienes categorías. Crea la primera.</value>
+  </data>
+  <data name="Category.ButtonNew" xml:space="preserve">
+    <value>➕ Nueva categoría</value>
+  </data>
+  <data name="Category.ButtonBudget" xml:space="preserve">
+    <value>💰 Presupuesto del mes</value>
+  </data>
+  <data name="Category.ButtonBack" xml:space="preserve">
+    <value>↩️ Volver</value>
+  </data>
+  <data name="Category.ButtonRename" xml:space="preserve">
+    <value>✏️ Renombrar</value>
+  </data>
+  <data name="Category.ButtonIcon" xml:space="preserve">
+    <value>🎨 Icono</value>
+  </data>
+  <data name="Category.ButtonAliases" xml:space="preserve">
+    <value>🔑 Alias</value>
+  </data>
+  <data name="Category.ButtonDeactivate" xml:space="preserve">
+    <value>⏸️ Desactivar</value>
+  </data>
+  <data name="Category.ButtonActivate" xml:space="preserve">
+    <value>▶️ Activar</value>
+  </data>
+  <data name="Category.ButtonSkip" xml:space="preserve">
+    <value>⏭️ Omitir</value>
+  </data>
+  <data name="Category.InactiveMarker" xml:space="preserve">
+    <value>⏸️</value>
+  </data>
+  <data name="Category.StatusInactive" xml:space="preserve">
+    <value>⏸️ Desactivada</value>
+  </data>
+  <data name="Category.DetailHeader" xml:space="preserve">
+    <value>Administrando {0} {1}</value>
+  </data>
+  <data name="Category.NamePrompt" xml:space="preserve">
+    <value>¿Cómo se llama la categoría?</value>
+  </data>
+  <data name="Category.NameInvalid" xml:space="preserve">
+    <value>El nombre debe tener entre 1 y {0} caracteres.</value>
+  </data>
+  <data name="Category.NameTaken" xml:space="preserve">
+    <value>Ya tienes una categoría con ese nombre. Prueba con otro.</value>
+  </data>
+  <data name="Category.Created" xml:space="preserve">
+    <value>✅ Categoría creada.</value>
+  </data>
+  <data name="Category.Reactivated" xml:space="preserve">
+    <value>Esa categoría estaba desactivada. La reactivé y su historia sigue intacta.</value>
+  </data>
+  <data name="Category.RenamePrompt" xml:space="preserve">
+    <value>¿Cuál es el nuevo nombre?</value>
+  </data>
+  <data name="Category.Renamed" xml:space="preserve">
+    <value>✅ Nombre actualizado.</value>
+  </data>
+  <data name="Category.IconPrompt" xml:space="preserve">
+    <value>¿Qué icono le pongo? Envíame un emoji o toca «Omitir».</value>
+  </data>
+  <data name="Category.IconChangePrompt" xml:space="preserve">
+    <value>Envíame el nuevo icono (un emoji).</value>
+  </data>
+  <data name="Category.IconInvalid" xml:space="preserve">
+    <value>El icono no puede tener más de {0} caracteres.</value>
+  </data>
+  <data name="Category.IconChanged" xml:space="preserve">
+    <value>✅ Icono actualizado.</value>
+  </data>
+  <data name="Category.Deactivated" xml:space="preserve">
+    <value>La categoría quedó desactivada. Sus gastos y presupuestos anteriores siguen intactos.</value>
+  </data>
+  <data name="Category.Activated" xml:space="preserve">
+    <value>La categoría volvió a estar activa.</value>
+  </data>
+  <data name="Category.NotFound" xml:space="preserve">
+    <value>No encontré esa categoría. Vuelve a la lista.</value>
+  </data>
+
+  <data name="Alias.ListHeader" xml:space="preserve">
+    <value>Alias de {0}. Sirven para reconocer la categoría cuando escribes un gasto.</value>
+  </data>
+  <data name="Alias.ListEmpty" xml:space="preserve">
+    <value>Todavía no tiene alias.</value>
+  </data>
+  <data name="Alias.ButtonAdd" xml:space="preserve">
+    <value>➕ Agregar alias</value>
+  </data>
+  <data name="Alias.ButtonRemovePrefix" xml:space="preserve">
+    <value>🗑️</value>
+  </data>
+  <data name="Alias.Prompt" xml:space="preserve">
+    <value>Escríbeme la palabra clave que quieres agregar.</value>
+  </data>
+  <data name="Alias.Invalid" xml:space="preserve">
+    <value>El alias debe tener entre 1 y {0} caracteres.</value>
+  </data>
+  <data name="Alias.Added" xml:space="preserve">
+    <value>✅ Alias agregado.</value>
+  </data>
+  <data name="Alias.Duplicate" xml:space="preserve">
+    <value>Ese alias ya está en esta categoría.</value>
+  </data>
+  <data name="Alias.Removed" xml:space="preserve">
+    <value>✅ Alias quitado.</value>
+  </data>
+  <data name="Alias.Conflict" xml:space="preserve">
+    <value>Ese alias ya pertenece a {0}.</value>
+  </data>
+  <data name="Alias.ConflictHint" xml:space="preserve">
+    <value>Si lo agregas igual, cuando el texto coincida te preguntaré a cuál categoría corresponde.</value>
+  </data>
+  <data name="Alias.ButtonAddAnyway" xml:space="preserve">
+    <value>✅ Agregar de todas formas</value>
+  </data>
+
+  <data name="Budget.Title" xml:space="preserve">
+    <value>💰 Presupuesto de {0}</value>
+  </data>
+  <data name="Budget.Empty" xml:space="preserve">
+    <value>Todavía no hay asignaciones para este mes.</value>
+  </data>
+  <data name="Budget.Line" xml:space="preserve">
+    <value>{0} {1}: {2}</value>
+  </data>
+  <data name="Budget.Total" xml:space="preserve">
+    <value>Total asignado: {0}</value>
+  </data>
+  <data name="Budget.ButtonAssign" xml:space="preserve">
+    <value>✏️ Asignar</value>
+  </data>
+  <data name="Budget.ButtonCopy" xml:space="preserve">
+    <value>📋 Copiar mes anterior</value>
+  </data>
+  <data name="Budget.ChooseCategory" xml:space="preserve">
+    <value>¿A qué categoría le asigno presupuesto?</value>
+  </data>
+  <data name="Budget.AmountPrompt" xml:space="preserve">
+    <value>¿Cuánto le asigno a {0}?</value>
+  </data>
+  <data name="Budget.AmountInvalid" xml:space="preserve">
+    <value>No entendí el valor. Escríbelo así: 500.000 o 1,5 millones.</value>
+  </data>
+  <data name="Budget.Saved" xml:space="preserve">
+    <value>✅ Asigné {0} a {1}.</value>
+  </data>
+  <data name="Budget.Copied" xml:space="preserve">
+    <value>✅ Copié el presupuesto del mes anterior.</value>
+  </data>
+  <data name="Budget.NoPrevious" xml:space="preserve">
+    <value>El mes anterior no tenía presupuesto, así que no hay nada que copiar.</value>
+  </data>
+  <data name="Budget.PastMonth" xml:space="preserve">
+    <value>Los meses pasados no se pueden editar.</value>
+  </data>
+  <data name="Budget.CategoryInactive" xml:space="preserve">
+    <value>Esa categoría está desactivada.</value>
+  </data>
+  <data name="Budget.CategoryNotFound" xml:space="preserve">
+    <value>No encontré esa categoría.</value>
+  </data>
+  <data name="Budget.NoCategories" xml:space="preserve">
+    <value>Primero crea una categoría activa.</value>
+  </data>
+
+  <data name="Month.January" xml:space="preserve">
+    <value>enero</value>
+  </data>
+  <data name="Month.February" xml:space="preserve">
+    <value>febrero</value>
+  </data>
+  <data name="Month.March" xml:space="preserve">
+    <value>marzo</value>
+  </data>
+  <data name="Month.April" xml:space="preserve">
+    <value>abril</value>
+  </data>
+  <data name="Month.May" xml:space="preserve">
+    <value>mayo</value>
+  </data>
+  <data name="Month.June" xml:space="preserve">
+    <value>junio</value>
+  </data>
+  <data name="Month.July" xml:space="preserve">
+    <value>julio</value>
+  </data>
+  <data name="Month.August" xml:space="preserve">
+    <value>agosto</value>
+  </data>
+  <data name="Month.September" xml:space="preserve">
+    <value>septiembre</value>
+  </data>
+  <data name="Month.October" xml:space="preserve">
+    <value>octubre</value>
+  </data>
+  <data name="Month.November" xml:space="preserve">
+    <value>noviembre</value>
+  </data>
+  <data name="Month.December" xml:space="preserve">
+    <value>diciembre</value>
+  </data>
 </root>
