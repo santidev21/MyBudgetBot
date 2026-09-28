@@ -79,6 +79,8 @@ public static class MessageKeys
 
     public const string ButtonSkip = "Buttons.Skip";
     public const string ButtonDelete = "Buttons.Delete";
+    public const string ButtonToday = "Buttons.Today";
+    public const string ButtonYesterday = "Buttons.Yesterday";
 
     public const string CategoryListHeader = "Category.ListHeader";
     public const string CategoryListEmpty = "Category.ListEmpty";
@@ -215,6 +217,8 @@ public static class MessageKeys
         ExpenseDeletedConfirm,
         ButtonSkip,
         ButtonDelete,
+        ButtonToday,
+        ButtonYesterday,
         CategoryListHeader,
         CategoryListEmpty,
         CategoryButtonNew,

@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Budgets;
 using MyBudget.Application.Categories;
 using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
+using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
@@ -42,10 +44,15 @@ internal sealed class TelegramHarness
 
         CategoryService = Substitute.For<ICategoryService>();
         BudgetService = Substitute.For<IBudgetService>();
+        ExpenseService = Substitute.For<IExpenseService>();
+        PendingActions = Substitute.For<IPendingActionStore>();
 
         var currencies = new CurrencyRegistry();
         var formatter = new MoneyFormatter(currencies);
         var moneyParser = new MoneyParser(currencies, formatter);
+        var dateParser = new DateParser();
+        var localDate = new UserLocalDate(clock);
+        var telegramOptions = Microsoft.Extensions.Options.Options.Create(options);
 
         Categories = new CategoriesConversation(
             Messages,
@@ -53,15 +60,31 @@ internal sealed class TelegramHarness
             BudgetService,
             moneyParser,
             formatter,
-            new UserLocalDate(clock),
+            localDate,
             Menu);
+
+        Expenses = new ExpenseConversation(
+            Messages,
+            ExpenseService,
+            CategoryService,
+            PendingActions,
+            moneyParser,
+            formatter,
+            dateParser,
+            localDate,
+            clock,
+            telegramOptions,
+            Menu);
+
+        UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
 
         Router = new ConversationRouter(
             Conversations,
             Messages,
             Menu,
-            [Onboarding, Categories],
-            Microsoft.Extensions.Options.Options.Create(options),
+            [Onboarding, Categories, Expenses],
+            [UndoHandler],
+            telegramOptions,
             clock);
 
         Dispatcher = new TelegramUpdateDispatcher(
@@ -96,6 +119,14 @@ internal sealed class TelegramHarness
     public IBudgetService BudgetService { get; }
 
     public CategoriesConversation Categories { get; }
+
+    public IExpenseService ExpenseService { get; }
+
+    public IPendingActionStore PendingActions { get; }
+
+    public ExpenseConversation Expenses { get; }
+
+    public ExpenseUndoHandler UndoHandler { get; }
 
     public ConversationRouter Router { get; }
 

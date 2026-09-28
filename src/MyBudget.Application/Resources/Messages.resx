@@ -209,6 +209,12 @@
   <data name="Buttons.Delete" xml:space="preserve">
     <value>🗑️ Eliminar</value>
   </data>
+  <data name="Buttons.Today" xml:space="preserve">
+    <value>📅 Hoy</value>
+  </data>
+  <data name="Buttons.Yesterday" xml:space="preserve">
+    <value>📅 Ayer</value>
+  </data>
 
   <data name="Category.ListHeader" xml:space="preserve">
     <value>Estas son tus categorías. Toca una para administrarla.</value>

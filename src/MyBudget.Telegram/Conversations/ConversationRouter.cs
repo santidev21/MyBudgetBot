@@ -18,6 +18,7 @@ internal sealed class ConversationRouter(
     IUserMessages messages,
     MainMenu menu,
     IEnumerable<IConversation> conversations,
+    IEnumerable<IGlobalCallback> globalCallbacks,
     IOptions<TelegramOptions> options,
     TimeProvider timeProvider)
 {
@@ -58,17 +59,27 @@ internal sealed class ConversationRouter(
     public async Task<ConversationTurn> RouteCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
     {
-        if (ActiveConversation(context) is not { } active)
+        if (ActiveConversation(context) is { } active)
         {
-            return Finished(
-                ConversationTurn.Say(
-                    messages.Get(context.Language, MessageKeys.ConversationExpired),
-                    menu.ReplyKeyboard(context.Language)));
+            var turn = await active.HandleCallbackAsync(context, callback, cancellationToken);
+            await PersistAsync(context, active.Name, turn, cancellationToken);
+            return turn;
         }
 
-        var turn = await active.HandleCallbackAsync(context, callback, cancellationToken);
-        await PersistAsync(context, active.Name, turn, cancellationToken);
-        return turn;
+        // No conversation is active, so this is a global action such as Undo. A callback
+        // nobody recognises is treated as expired rather than silently ignored.
+        foreach (var globalAction in globalCallbacks)
+        {
+            if (await globalAction.TryHandleAsync(context, callback, cancellationToken) is { } handled)
+            {
+                return handled;
+            }
+        }
+
+        return Finished(
+            ConversationTurn.Say(
+                messages.Get(context.Language, MessageKeys.ConversationExpired),
+                menu.ReplyKeyboard(context.Language)));
     }
 
     private async Task<ConversationTurn> RunCommandAsync(
@@ -106,6 +117,7 @@ internal sealed class ConversationRouter(
         var conversationName = action switch
         {
             MessageKeys.MenuCategories => CategoriesConversation.ConversationName,
+            MessageKeys.MenuAddExpense => ExpenseConversation.ConversationName,
             _ => null,
         };
 
