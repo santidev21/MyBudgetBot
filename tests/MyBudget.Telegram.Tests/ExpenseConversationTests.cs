@@ -285,4 +285,73 @@ public sealed class ExpenseConversationTests
         turn.Responses.Should().ContainSingle()
             .Which.Text.Should().Be(harness.Messages.Get("es", MessageKeys.ExpenseNotFound));
     }
+
+    [Fact]
+    public async Task A_compact_message_keeps_its_amount_and_description_and_asks_for_the_category()
+    {
+        var harness = TelegramHarness.Build();
+        var category = Category(harness);
+        harness.CategoryService
+            .ListAsync(harness.User.Id, false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetCategory>>([category]));
+        harness.CategoryService
+            .GetAsync(harness.User.Id, category.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<BudgetCategory?>(category));
+
+        var picker = await harness.Router.RouteTextAsync(
+            ContextFor(harness), "35.000 verduras", CancellationToken.None);
+
+        picker.NextState.Should().Be("category");
+        picker.Responses.Last().Text.Should().Be(
+            harness.Messages.Get("es", MessageKeys.ExpenseCategoryPrompt));
+
+        var confirmation = await harness.Router.RouteCallbackAsync(
+            ContextFor(
+                harness, "category",
+                new ExpensePayload { Amount = 35_000, Description = "verduras" }),
+            new IncomingCallback("cb", $"exp:cat:{category.Id}"),
+            CancellationToken.None);
+
+        confirmation.Responses.Last().Text.Should().Contain("$35.000");
+        confirmation.Responses.Last().Text.Should().Contain("verduras");
+    }
+
+    [Fact]
+    public async Task A_bare_amount_asks_for_the_description()
+    {
+        var harness = TelegramHarness.Build();
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness), "35000", CancellationToken.None);
+
+        turn.NextState.Should().Be("awaiting-description");
+        turn.Responses.Last().Text.Should().Be(
+            harness.Messages.Get("es", MessageKeys.ExpenseDescriptionPrompt));
+    }
+
+    [Fact]
+    public async Task An_ambiguous_amount_asks_which_one_instead_of_guessing()
+    {
+        var harness = TelegramHarness.Build();
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness), "12 y 15", CancellationToken.None);
+
+        turn.NextState.Should().Be("awaiting-amount");
+        turn.Responses[0].Text.Should().Be(
+            harness.Messages.Get("es", MessageKeys.ExpenseAmbiguousAmount));
+    }
+
+    [Fact]
+    public async Task Text_without_an_amount_is_not_an_entry_and_falls_back_to_help()
+    {
+        var harness = TelegramHarness.Build();
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness), "hola qué tal", CancellationToken.None);
+
+        turn.Completed.Should().BeTrue();
+        turn.Responses.Should().ContainSingle()
+            .Which.Text.Should().Be(harness.Messages.Get("es", MessageKeys.Help));
+    }
 }

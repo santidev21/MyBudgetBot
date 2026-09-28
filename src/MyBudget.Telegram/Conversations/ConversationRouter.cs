@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Money;
 using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
 
@@ -19,6 +20,7 @@ internal sealed class ConversationRouter(
     MainMenu menu,
     IEnumerable<IConversation> conversations,
     IEnumerable<IGlobalCallback> globalCallbacks,
+    ICompactExpenseParser compactParser,
     IOptions<TelegramOptions> options,
     TimeProvider timeProvider)
 {
@@ -50,6 +52,19 @@ internal sealed class ConversationRouter(
         {
             var turn = await active.HandleTextAsync(context, new IncomingText(text), cancellationToken);
             await PersistAsync(context, active.Name, turn, cancellationToken);
+            return turn;
+        }
+
+        // Free text with nothing active is a compact entry: "35.000 verduras" becomes the same
+        // confirmation. Text that carries no amount is not an entry and falls through to help.
+        var compact = compactParser.Parse(text, context.User.Currency);
+        if (compact.Outcome != CompactExpenseOutcome.Unparsed
+            && Find(ExpenseConversation.ConversationName) is IExpenseEntry entry)
+        {
+            await store.ClearAsync(context.User.Id, cancellationToken);
+            var fresh = context with { Conversation = null };
+            var turn = await entry.StartFromCompactAsync(fresh, compact, cancellationToken);
+            await PersistAsync(fresh, ExpenseConversation.ConversationName, turn, cancellationToken);
             return turn;
         }
 

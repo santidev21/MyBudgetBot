@@ -30,7 +30,7 @@ internal sealed class ExpenseConversation(
     IUserLocalDate localDate,
     TimeProvider timeProvider,
     IOptions<TelegramOptions> options,
-    MainMenu menu) : IConversation
+    MainMenu menu) : IConversation, IExpenseEntry
 {
     public const string ConversationName = "expense";
 
@@ -55,6 +55,32 @@ internal sealed class ExpenseConversation(
     public Task<ConversationTurn> StartAsync(
         ConversationContext context, CancellationToken cancellationToken) =>
         Task.FromResult(PromptAmount(context));
+
+    public async Task<ConversationTurn> StartFromCompactAsync(
+        ConversationContext context, CompactExpenseResult parsed, CancellationToken cancellationToken)
+    {
+        switch (parsed.Outcome)
+        {
+            case CompactExpenseOutcome.Parsed:
+                // Both halves are known, so skip straight to the category.
+                return await CategoryPickerAsync(
+                    context,
+                    new ExpensePayload { Amount = parsed.Amount, Description = parsed.Description },
+                    [],
+                    cancellationToken);
+
+            case CompactExpenseOutcome.AmountOnly:
+                // A bare number answers "how much?" and asks for the description next.
+                return DescriptionPrompt(context, new ExpensePayload { Amount = parsed.Amount });
+
+            case CompactExpenseOutcome.Ambiguous:
+                // Two plausible amounts: ask rather than guess.
+                return PromptAmount(context, Said(context, MessageKeys.ExpenseAmbiguousAmount));
+
+            default:
+                return PromptAmount(context);
+        }
+    }
 
     public async Task<ConversationTurn> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)

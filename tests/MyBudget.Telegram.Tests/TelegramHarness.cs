@@ -52,6 +52,7 @@ internal sealed class TelegramHarness
         var moneyParser = new MoneyParser(currencies, formatter);
         var dateParser = new DateParser();
         var localDate = new UserLocalDate(clock);
+        var compactParser = new CompactExpenseParser(currencies, moneyParser);
         var telegramOptions = Microsoft.Extensions.Options.Options.Create(options);
 
         Categories = new CategoriesConversation(
@@ -84,6 +85,7 @@ internal sealed class TelegramHarness
             Menu,
             [Onboarding, Categories, Expenses],
             [UndoHandler],
+            compactParser,
             telegramOptions,
             clock);
 
