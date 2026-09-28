@@ -61,15 +61,18 @@ docs/TECHNICAL-DESIGN.md
 | Add a migration | `dotnet dotnet-ef migrations add <Name> --project src/MyBudget.Infrastructure --startup-project src/MyBudget.Infrastructure` |
 | Apply migrations | `dotnet dotnet-ef database update --project src/MyBudget.Infrastructure --startup-project src/MyBudget.Infrastructure` |
 | Local stack | `docker compose -f docker-compose.yml -f docker-compose.local.yml up --build` |
-| Local API port | `http://localhost:8091` (8080 and 8090 are used by other projects) |
+| Local API port | `http://localhost:8092` (native) or `http://localhost:8091` (Docker) |
+| Local database port | `127.0.0.1:5435` (5432/5433/5434 are taken on this host) |
+| Fill Telegram settings | `./scripts/init-telegram-env.sh --polling` (never prints secrets) |
 | Register the bot in Telegram | `dotnet run --project src/MyBudget.Api -- --configure-telegram` |
 | Remove the webhook | `dotnet run --project src/MyBudget.Api -- --delete-webhook` |
 | Deploy on VPS | `cd /opt/mybudget && ./scripts/deploy.sh deploy` |
 
-Local chat development: set `TELEGRAM_BOT_TOKEN`, `ALLOWED_TELEGRAM_USER_IDS` and
-`TELEGRAM_USE_POLLING=true`, then delete the webhook first — Telegram allows webhooks or
-polling, never both. Polling reuses the same dispatcher as the webhook, so what you test
-locally is what ships.
+Local chat development: the app reads `.env` in development, so `TELEGRAM_BOT_TOKEN`,
+`ALLOWED_TELEGRAM_USER_IDS` and `TELEGRAM_USE_POLLING=true` are enough, then
+`dotnet run --project src/MyBudget.Api`. Delete any registered webhook first — Telegram allows
+webhooks or polling, never both. Polling reuses the same dispatcher as the webhook, so what
+you test locally is what ships.
 
 Addresses: containers `mybudget` / `mybudget-db` / `mybudget-migrator`; networks
 `mybudget-net` (external, gateway) and `mybudget-internal-net` (internal, database only).
@@ -134,13 +137,30 @@ Database and application ports are never published in production.
   Qualify it as `Microsoft.Extensions.Options.Options.Create`.
 - **`Update.Id` is an `int`** in Telegram.Bot. Widen it to `long` for the inbox, which is a
   bigint.
+- **Docker cannot publish a host port for a container whose only network is `internal: true`**
+  (it starts with `NetworkSettings.Ports` null and no error). Production publishes nothing and
+  keeps the internal network; `docker-compose.local.yml` uses dedicated non-internal networks
+  so the database port is reachable for native runs.
+- **Configuration binding does not turn a single value into an array.** A `long[]` property
+  bound from `"111,222,333"` stays empty, silently. `TelegramOptions.AllowedUserIds` is
+  therefore a `string` with explicit parsing and startup validation.
+- **A blank configuration value counts as unset.** `appsettings.json` ships
+  `ConnectionStrings:Database` as an empty string; treating that as configured stops `.env`
+  from ever filling it.
+- **Hosted services are singletons.** Both the inbox purge and Telegram polling resolve scoped
+  services, so they must create a scope per iteration. This bit twice, and only a test that
+  builds the real host catches it: the default smoke test runs with Telegram disabled, so
+  `ApiTelegramWiringTests` exists specifically to register the polling path.
 
 ## Status
 
 Phase 0–3 complete: domain, schema, persistence, Docker, CI, money and date parsing, the
 message catalog, and the full Telegram pipeline (webhook with dual secret validation,
 idempotent inbox, allowlist, per-user advisory lock, database-backed conversation state,
-onboarding, commands, menu). 474 tests, all green. Money code is at 97,5 % line coverage.
+onboarding, commands, menu). 502 tests, all green. Money code is at 97,5 % line coverage.
 
-Next: Phase 4 (category and monthly budget management). The bot answers `/start`, `/help`
-and `/cancel`; the menu items reply that they are not ready yet.
+Running it locally: fill `.env` (see `scripts/init-telegram-env.sh`), start the database with
+the local overlay, and `dotnet run --project src/MyBudget.Api`. The app reads `.env` in
+development, so no variable has to be repeated on the command line. The bot answers `/start`.
+
+Next: Phase 4 (category and monthly budget management).

@@ -2,31 +2,41 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 #
-# Differences from production: local bridge networks instead of the gateway's shared
-# network, ASPNETCORE_ENVIRONMENT=Development, and loopback-only published ports.
-#
-# 'external: false' is required, not cosmetic: Compose merges network definitions, so
-# without it the base file's 'external: true' survives and startup fails because the
-# gateway network does not exist on a developer machine.
+# Differences from production: dedicated local networks, ASPNETCORE_ENVIRONMENT=Development,
+# and loopback-only published ports.
 
 services:
   db:
+    # 5432 is the default every tool tries to grab, and this host already runs two other
+    # PostgreSQL instances on 5433 and 5434. 5435 follows that convention.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5435:5432"
 
   app:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      # A laptop has no public URL, so polling is the sensible local default. It also means the
+      # local stack never needs a DNS record or a certificate.
+      Telegram__UsePolling: ${TELEGRAM_USE_POLLING:-true}
     # 8080 is commonly taken by other projects on this machine.
     ports:
       - "127.0.0.1:8091:8080"
 
 networks:
+  # Dedicated local networks rather than the production ones, for two reasons:
+  #
+  #   * 'external: false', because the gateway's shared network does not exist on a laptop,
+  #     and Compose merges network definitions rather than replacing them;
+  #   * 'internal: false', because Docker silently refuses to publish a host port for a
+  #     container whose only network is internal. The database port must be reachable from
+  #     the host for native 'dotnet run' and 'dotnet ef'. Production publishes nothing, so
+  #     it keeps the internal network.
   mybudget-net:
-    name: mybudget-net
+    name: mybudget-local-net
     driver: bridge
     external: false
   mybudget-internal-net:
-    name: mybudget-internal-net
+    name: mybudget-local-internal-net
     driver: bridge
     external: false
+    internal: false

@@ -59,7 +59,7 @@ later as data, not as a rewrite. Today there is exactly one of each.
   is DML-only).
 - Docker Compose deployment aligned with the `vps-gateway` standard, including the
   versioned gateway site config that restricts health endpoints and the webhook.
-- 474 tests: domain units, money and date corpora with property-based tests, localization
+- 502 tests: domain units, money and date corpora with property-based tests, localization
   guards, Telegram pipeline and conversation tests, application contract tests, architecture
   tests, migration guardrails and PostgreSQL integration tests.
 
@@ -214,24 +214,30 @@ commits, documentation — are in English. Only resource *values* are Spanish.
 Requirements: .NET 8 SDK, Docker.
 
 ```bash
-# 1. Configuration
-cp .env.example .env          # then replace every CHANGE_ME value
+# 1. Configuration. Generates the two webhook secrets and reports what only you can provide.
+cp .env.example .env
+./scripts/init-telegram-env.sh --polling
 
-# 2. Database only (loopback on 127.0.0.1:5432)
+# 2. Database only (loopback on 127.0.0.1:5435)
 docker compose -f docker-compose.yml -f docker-compose.local.yml up -d db
 
-# 3. Apply migrations
+# 3. Apply migrations. Reads .env, so no connection string on the command line.
 dotnet dotnet-ef database update \
   --project src/MyBudget.Infrastructure \
   --startup-project src/MyBudget.Infrastructure
 
-# 4. Run the API with hot reload (http://localhost:8080)
-DATABASE_CONNECTION_STRING="Host=localhost;Port=5432;Database=mybudget;Username=mybudget_migrator;Password=<...>" \
-  dotnet run --project src/MyBudget.Api
+# 4. Run the API (http://localhost:8092). Also reads .env.
+dotnet run --project src/MyBudget.Api
 
-# Or run the whole stack in Docker (app on 127.0.0.1:8091)
+# Or run the whole stack in Docker (app on 127.0.0.1:8091, polling enabled)
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
+
+In development the API reads `.env`, the same file Docker Compose uses, so a value is
+configured once. An explicitly set environment variable always wins over the file.
+
+Port 5435 is deliberate: 5432 is the PostgreSQL default that every tool tries to grab, and
+other projects on this host already use 5433 and 5434.
 
 Health endpoints:
 

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using MyBudget.Api.Endpoints;
 using MyBudget.Application;
 using MyBudget.Infrastructure;
+using MyBudget.Infrastructure.Configuration;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Telegram;
 using MyBudget.Telegram.Options;
@@ -12,6 +13,20 @@ using Serilog.Events;
 using Serilog.Formatting.Compact;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (IsDotEnvLoadingEnabled(builder.Configuration, builder.Environment))
+{
+    // Docker Compose reads .env for substitution; .NET does not. Loading it here means one
+    // file configures both ways of running the service, and an explicitly set environment
+    // variable still wins over the file.
+    var fromDotEnv = LocalDevelopmentConfiguration.Resolve(
+        builder.Configuration, builder.Environment.ContentRootPath);
+
+    if (fromDotEnv.Count > 0)
+    {
+        builder.Configuration.AddInMemoryCollection(fromDotEnv);
+    }
+}
 
 builder.Host.UseSerilog((context, services, loggerConfiguration) =>
 {
@@ -150,4 +165,32 @@ static Task WriteHealthReportAsync(HttpContext context, HealthReport report)
 }
 
 /// <summary>Exposed so integration tests can host the API with <c>WebApplicationFactory</c>.</summary>
-public partial class Program;
+public partial class Program
+{
+    /// <summary>
+    /// Whether to read <c>.env</c>.
+    /// <para>
+    /// <c>LocalDevelopment:LoadDotEnv</c> forces it either way. Otherwise the file is read in
+    /// development only: production takes every value from the environment, and a file that
+    /// silently participates in configuration there would be a liability. The value of this is
+    /// that <c>LocalDevelopment:LoadDotEnv=false</c> lets automated tests opt out, so a test
+    /// run can never pick up real credentials or start polling with them.
+    /// </para>
+    /// </summary>
+    private static bool IsDotEnvLoadingEnabled(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var setting = configuration["LocalDevelopment:LoadDotEnv"];
+
+        if (string.Equals(setting, "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (string.Equals(setting, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return environment.IsDevelopment();
+    }
+}

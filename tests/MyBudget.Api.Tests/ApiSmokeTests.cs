@@ -19,9 +19,20 @@ public sealed class ApiSmokeTests : IClassFixture<WebApplicationFactory<Program>
     public ApiSmokeTests(WebApplicationFactory<Program> factory) => _factory = factory;
 
     private HttpClient CreateClient() => _factory
-        .WithWebHostBuilder(builder => builder.UseSetting(
-            "ConnectionStrings:Database",
-            "Host=localhost;Port=5432;Database=mybudget;Username=none;Password=none"))
+        .WithWebHostBuilder(builder =>
+        {
+            // Without this the host would load the developer's .env: real credentials, and
+            // polling would start making real Telegram API calls from a test run.
+            builder.UseSetting("LocalDevelopment:LoadDotEnv", "false");
+
+            // Belt and braces: even if a .env were loaded, Telegram stays disabled here.
+            builder.UseSetting("Telegram:BotToken", string.Empty);
+            builder.UseSetting("Telegram:UsePolling", "false");
+
+            builder.UseSetting(
+                "ConnectionStrings:Database",
+                "Host=localhost;Port=5435;Database=mybudget;Username=none;Password=none");
+        })
         .CreateClient();
 
     [Fact]

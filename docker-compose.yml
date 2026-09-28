@@ -88,7 +88,9 @@ services:
       Telegram__WebhookPath: ${TELEGRAM_WEBHOOK_PATH:-}
       Telegram__PublicBaseUrl: ${TELEGRAM_PUBLIC_BASE_URL:-}
       Telegram__AllowedUserIds: ${ALLOWED_TELEGRAM_USER_IDS:-}
-      Telegram__UsePolling: ${TELEGRAM_USE_POLLING:-false}
+      # Production is webhook-only. Hardcoded so a copied .env cannot silently turn polling on
+      # in production, where Telegram could then deliver nothing at all.
+      Telegram__UsePolling: "false"
       Telegram__StaleUpdateMinutes: ${TELEGRAM_STALE_UPDATE_MINUTES:-15}
       Telegram__ConversationTimeoutMinutes: ${TELEGRAM_CONVERSATION_TIMEOUT_MINUTES:-30}
       Localization__DefaultLanguage: ${DEFAULT_LANGUAGE:-es}

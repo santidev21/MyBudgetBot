@@ -94,7 +94,7 @@ internal sealed class TelegramHarness
             WebhookSecret = "test-webhook-secret-value",
             WebhookPath = "test-webhook-path-value",
             PublicBaseUrl = "https://example.test",
-            AllowedUserIds = [telegramUserId],
+            AllowedUserIds = telegramUserId.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
         var user = new User(telegramUserId, "tester", "Test User");

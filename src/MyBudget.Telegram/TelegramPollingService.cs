@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,7 +18,7 @@ namespace MyBudget.Telegram;
 /// </summary>
 internal sealed class TelegramPollingService(
     ITelegramBotClient botClient,
-    ITelegramUpdateDispatcher dispatcher,
+    IServiceScopeFactory scopeFactory,
     IOptions<TelegramOptions> options,
     ILogger<TelegramPollingService> logger) : BackgroundService
 {
@@ -48,6 +49,12 @@ internal sealed class TelegramPollingService(
                 {
                     // Advance before processing so a failing update is not fetched forever.
                     offset = update.Id + 1;
+
+                    // A hosted service is a singleton and the dispatcher is scoped, so every
+                    // update gets its own scope. Consuming it directly fails at startup.
+                    using var scope = scopeFactory.CreateScope();
+                    var dispatcher = scope.ServiceProvider.GetRequiredService<ITelegramUpdateDispatcher>();
+
                     await dispatcher.DispatchAsync(update, stoppingToken);
                 }
             }

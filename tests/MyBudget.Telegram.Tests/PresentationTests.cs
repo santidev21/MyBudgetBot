@@ -123,7 +123,7 @@ public sealed class PresentationTests
             BotToken = "abc",
             WebhookSecret = "short",
             WebhookPath = "short",
-            AllowedUserIds = [1],
+            AllowedUserIds = "1",
             PublicBaseUrl = "https://example.test",
         });
 
@@ -140,7 +140,7 @@ public sealed class PresentationTests
             BotToken = "123:abc",
             WebhookSecret = "a".PadRight(24, 'b'),
             WebhookPath = "c".PadRight(24, 'd'),
-            AllowedUserIds = [123456789],
+            AllowedUserIds = "123456789",
             PublicBaseUrl = "https://mybudget.example.test",
         });
 
@@ -157,7 +157,7 @@ public sealed class PresentationTests
             BotToken = "123:abc",
             WebhookSecret = "a".PadRight(24, 'b'),
             WebhookPath = "c".PadRight(24, 'd'),
-            AllowedUserIds = [123456789],
+            AllowedUserIds = "123456789",
             UsePolling = true,
         });
 

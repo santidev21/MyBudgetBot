@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Options;
 
 namespace MyBudget.Telegram.Options;
@@ -5,6 +6,8 @@ namespace MyBudget.Telegram.Options;
 public sealed class TelegramOptions
 {
     public const string SectionName = "Telegram";
+
+    private IReadOnlyList<long>? _allowedUserIds;
 
     public string BotToken { get; set; } = string.Empty;
 
@@ -18,9 +21,15 @@ public sealed class TelegramOptions
     public string PublicBaseUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// The only users allowed to talk to the bot. Fails closed: an empty list refuses everyone.
+    /// Telegram user ids allowed to use the bot, comma separated: <c>111,222,333</c>.
+    /// <para>
+    /// Kept as a string on purpose. Configuration binding does not turn a single value into an
+    /// array: a bound <c>long[]</c> silently stays empty, and because access fails closed the
+    /// bot would refuse every user including its owner. Parsing is explicit here and validated
+    /// at startup.
+    /// </para>
     /// </summary>
-    public long[] AllowedUserIds { get; set; } = [];
+    public string AllowedUserIds { get; set; } = string.Empty;
 
     /// <summary>
     /// Updates older than this are ignored. Telegram replays queued updates after downtime, and
@@ -39,11 +48,56 @@ public sealed class TelegramOptions
     /// </summary>
     public bool IsEnabled => !string.IsNullOrWhiteSpace(BotToken);
 
-    public bool IsUserAllowed(long telegramUserId) => AllowedUserIds.Contains(telegramUserId);
+    /// <summary>
+    /// Whether this Telegram user may use the bot. Fails closed: an empty or unparsable list
+    /// refuses everyone, and the startup validator refuses to let that reach production.
+    /// </summary>
+    public bool IsUserAllowed(long telegramUserId) => AllowedUserIdsList.Contains(telegramUserId);
+
+    /// <summary>The configured ids, parsed once.</summary>
+    public IReadOnlyList<long> AllowedUserIdsList => _allowedUserIds ??= ParseAllowedUserIds();
 
     public TimeSpan StaleUpdateWindow => TimeSpan.FromMinutes(Math.Max(1, StaleUpdateMinutes));
 
     public TimeSpan ConversationTimeout => TimeSpan.FromMinutes(Math.Max(1, ConversationTimeoutMinutes));
+
+    /// <summary>Parses a comma separated list, tolerating spaces and trailing separators.</summary>
+    public static bool TryParseAllowedUserIds(
+        string? value, out IReadOnlyList<long> ids, out string? error)
+    {
+        ids = [];
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var parsed = new List<long>();
+
+        foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!long.TryParse(part, NumberStyles.None, CultureInfo.InvariantCulture, out var id) || id <= 0)
+            {
+                ids = [];
+                error = $"'{part}' is not a valid Telegram user id.";
+                return false;
+            }
+
+            parsed.Add(id);
+        }
+
+        if (parsed.Count == 0)
+        {
+            return false;
+        }
+
+        ids = parsed;
+        return true;
+    }
+
+    private IReadOnlyList<long> ParseAllowedUserIds() =>
+        TryParseAllowedUserIds(AllowedUserIds, out var ids, out _) ? ids : [];
 }
 
 /// <summary>
@@ -84,15 +138,13 @@ public sealed class TelegramOptionsValidator : IValidateOptions<TelegramOptions>
             failures.Add($"{TelegramOptions.SectionName}:WebhookPath must be at least 16 characters.");
         }
 
-        if (options.AllowedUserIds.Length == 0)
+        if (!TelegramOptions.TryParseAllowedUserIds(options.AllowedUserIds, out _, out var allowedError))
         {
-            failures.Add(
-                $"{TelegramOptions.SectionName}:AllowedUserIds must list at least one Telegram user id. " +
-                "Without it the bot would be open to anyone who finds it.");
-        }
-        else if (options.AllowedUserIds.Any(id => id <= 0))
-        {
-            failures.Add($"{TelegramOptions.SectionName}:AllowedUserIds must contain positive ids.");
+            failures.Add(allowedError is null
+                ? $"{TelegramOptions.SectionName}:AllowedUserIds must list at least one Telegram user id, " +
+                  "comma separated. Without it the bot would be open to anyone who finds it."
+                : $"{TelegramOptions.SectionName}:AllowedUserIds {allowedError} Expected a comma separated " +
+                  "list of numeric ids, for example 111,222.");
         }
 
         if (options.StaleUpdateMinutes < 1)
