@@ -178,6 +178,21 @@
   <data name="Expense.AmbiguousAmount" xml:space="preserve">
     <value>Encontré varios valores. ¿Cuál es el monto?</value>
   </data>
+  <data name="Expense.EditPrompt" xml:space="preserve">
+    <value>¿Qué quieres editar?</value>
+  </data>
+  <data name="Expense.ButtonAmount" xml:space="preserve">
+    <value>💵 Monto</value>
+  </data>
+  <data name="Expense.ButtonDescription" xml:space="preserve">
+    <value>📝 Descripción</value>
+  </data>
+  <data name="Expense.ButtonCategory" xml:space="preserve">
+    <value>🏷️ Categoría</value>
+  </data>
+  <data name="Expense.Updated" xml:space="preserve">
+    <value>✅ Gasto actualizado.</value>
+  </data>
   <data name="Expense.Expired" xml:space="preserve">
     <value>Esa confirmación ya venció o ya se registró.</value>
   </data>

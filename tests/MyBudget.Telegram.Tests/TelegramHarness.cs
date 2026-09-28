@@ -79,7 +79,8 @@ internal sealed class TelegramHarness
 
         UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
 
-        ExpenseList = new ExpensesConversation(Messages, ExpenseService, formatter, localDate, Menu);
+        ExpenseList = new ExpensesConversation(
+            Messages, ExpenseService, CategoryService, moneyParser, formatter, dateParser, localDate, Menu);
 
         Router = new ConversationRouter(
             Conversations,

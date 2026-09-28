@@ -160,7 +160,7 @@ internal sealed class ExpenseConversation(
         }
 
         var key = parsed is MoneyParseResult.Invalid invalid
-            ? MapAmountError(invalid.Reason)
+            ? InputErrorMessages.ForAmount(invalid.Reason)
             : MessageKeys.AmountInvalid;
 
         return Task.FromResult(PromptAmount(context, Said(context, key)));
@@ -185,12 +185,7 @@ internal sealed class ExpenseConversation(
         }
 
         var key = parsed is DateParseResult.Invalid invalid
-            ? invalid.Reason switch
-            {
-                DateParseError.Future => MessageKeys.DateFuture,
-                DateParseError.TooOld => MessageKeys.DateTooOld,
-                _ => MessageKeys.DateInvalid,
-            }
+            ? InputErrorMessages.ForDate(invalid.Reason)
             : MessageKeys.DateInvalid;
 
         return DatePrompt(context, payload, [Said(context, key)]);
@@ -470,12 +465,4 @@ internal sealed class ExpenseConversation(
 
     private BotResponse Said(ConversationContext context, string key, params object?[] args) =>
         BotResponse.Message(messages.Get(context.Language, key, args));
-
-    private static string MapAmountError(MoneyParseError reason) => reason switch
-    {
-        MoneyParseError.Negative => MessageKeys.AmountNegative,
-        MoneyParseError.FractionNotAllowed => MessageKeys.AmountFractionNotAllowed,
-        MoneyParseError.TooLarge => MessageKeys.AmountTooLarge,
-        _ => MessageKeys.AmountInvalid,
-    };
 }

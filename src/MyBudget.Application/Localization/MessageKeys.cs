@@ -68,6 +68,11 @@ public static class MessageKeys
     public const string ExpenseConfirmationDate = "Expense.ConfirmationDate";
     public const string ExpenseNoDescription = "Expense.NoDescription";
     public const string ExpenseAmbiguousAmount = "Expense.AmbiguousAmount";
+    public const string ExpenseEditPrompt = "Expense.EditPrompt";
+    public const string ExpenseButtonAmount = "Expense.ButtonAmount";
+    public const string ExpenseButtonDescription = "Expense.ButtonDescription";
+    public const string ExpenseButtonCategory = "Expense.ButtonCategory";
+    public const string ExpenseUpdated = "Expense.Updated";
     public const string ExpenseExpired = "Expense.Expired";
     public const string ExpenseNotFound = "Expense.NotFound";
     public const string ExpenseUndone = "Expense.Undone";
@@ -209,6 +214,11 @@ public static class MessageKeys
         ExpenseConfirmationDate,
         ExpenseNoDescription,
         ExpenseAmbiguousAmount,
+        ExpenseEditPrompt,
+        ExpenseButtonAmount,
+        ExpenseButtonDescription,
+        ExpenseButtonCategory,
+        ExpenseUpdated,
         ExpenseExpired,
         ExpenseNotFound,
         ExpenseUndone,

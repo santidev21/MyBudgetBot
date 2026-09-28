@@ -191,4 +191,102 @@ public sealed class ExpensesConversationTests
         turn.Responses.Should().ContainSingle()
             .Which.Text.Should().Be(harness.Messages.Get("es", MessageKeys.Cancelled));
     }
+
+    [Fact]
+    public async Task Editing_offers_the_four_fields()
+    {
+        var harness = TelegramHarness.Build();
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "detail", new ExpensesPayload().WithExpense(Guid.NewGuid())),
+            new IncomingCallback("cb", "exps:edit"),
+            CancellationToken.None);
+
+        turn.NextState.Should().Be("edit-menu");
+        turn.Responses.Last().Keyboard!.Rows
+            .SelectMany(row => row)
+            .Select(button => button.CallbackData)
+            .Should().Contain(["exps:edit:amount", "exps:edit:description", "exps:edit:category", "exps:edit:date"]);
+    }
+
+    [Fact]
+    public async Task Editing_the_amount_updates_the_expense()
+    {
+        var harness = TelegramHarness.Build();
+        var item = Item(Guid.NewGuid());
+        harness.ExpenseService
+            .GetItemAsync(harness.User.Id, item.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ExpenseListItem?>(item));
+        harness.ExpenseService
+            .UpdateAsync(
+                Arg.Any<Guid>(), item.Id, Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string?>(),
+                Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ExpenseChangeResult.Ok(
+                new Expense(harness.User.Id, item.CategoryId, 40_000, item.Description, item.ExpenseDate, Today))));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness, "edit-amount", new ExpensesPayload().WithExpense(item.Id)),
+            "40.000",
+            CancellationToken.None);
+
+        await harness.ExpenseService.Received(1).UpdateAsync(
+            harness.User.Id, item.Id, item.CategoryId, 40_000, item.Description, item.ExpenseDate, Today,
+            Arg.Any<CancellationToken>());
+        turn.Responses.Should().Contain(response =>
+            response.Text == harness.Messages.Get("es", MessageKeys.ExpenseUpdated));
+    }
+
+    [Fact]
+    public async Task Clearing_the_description_removes_it()
+    {
+        var harness = TelegramHarness.Build();
+        var item = Item(Guid.NewGuid());
+        harness.ExpenseService
+            .GetItemAsync(harness.User.Id, item.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ExpenseListItem?>(item));
+        harness.ExpenseService
+            .UpdateAsync(
+                Arg.Any<Guid>(), item.Id, Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string?>(),
+                Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ExpenseChangeResult.Ok(
+                new Expense(harness.User.Id, item.CategoryId, item.Amount, null, item.ExpenseDate, Today))));
+
+        await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "edit-description", new ExpensesPayload().WithExpense(item.Id)),
+            new IncomingCallback("cb", "exps:skip"),
+            CancellationToken.None);
+
+        await harness.ExpenseService.Received(1).UpdateAsync(
+            harness.User.Id, item.Id, item.CategoryId, item.Amount, null, item.ExpenseDate, Today,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Editing_the_category_uses_the_chosen_one()
+    {
+        var harness = TelegramHarness.Build();
+        var item = Item(Guid.NewGuid());
+        var chosen = new MyBudget.Domain.Categories.BudgetCategory(harness.User.Id, "Restaurantes", "🍽️");
+        harness.CategoryService
+            .ListAsync(harness.User.Id, false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<MyBudget.Domain.Categories.BudgetCategory>>([chosen]));
+        harness.ExpenseService
+            .GetItemAsync(harness.User.Id, item.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<ExpenseListItem?>(item));
+        harness.ExpenseService
+            .UpdateAsync(
+                Arg.Any<Guid>(), item.Id, Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<string?>(),
+                Arg.Any<DateOnly>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ExpenseChangeResult.Ok(
+                new Expense(harness.User.Id, chosen.Id, item.Amount, item.Description, item.ExpenseDate, Today))));
+
+        await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "edit-category", new ExpensesPayload().WithExpense(item.Id)),
+            new IncomingCallback("cb", $"exps:cat:{chosen.Id}"),
+            CancellationToken.None);
+
+        await harness.ExpenseService.Received(1).UpdateAsync(
+            harness.User.Id, item.Id, chosen.Id, item.Amount, item.Description, item.ExpenseDate, Today,
+            Arg.Any<CancellationToken>());
+    }
 }
