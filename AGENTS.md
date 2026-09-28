@@ -151,6 +151,19 @@ Database and application ports are never published in production.
   services, so they must create a scope per iteration. This bit twice, and only a test that
   builds the real host catches it: the default smoke test runs with Telegram disabled, so
   `ApiTelegramWiringTests` exists specifically to register the polling path.
+- **A tap on the persistent menu outranks the active conversation.** If the router delegated
+  first, a label like `📊 Resumen` would be swallowed as flow input and could become a category
+  name. `ConversationRouter` matches the menu before handing text to a conversation, and
+  starting a menu flow clears whatever was in progress.
+- **Callback data is capped at 64 bytes, so identity does not always fit.** The alias screen
+  identifies a keyword by its position in a list carried in the conversation payload, then
+  removes it by term. A 60-character alias plus a prefix does not fit.
+- **`IUserLocalDate` is the only place a UTC instant becomes the user's calendar date.** Budget
+  months, and expense dates in Phase 5, go through it. A stored time zone is not trusted: an
+  unusable value falls back to UTC instead of raising.
+- **A conversation payload that cannot be read is treated as empty.** `jsonb` is canonicalised
+  by PostgreSQL and may have been written by an older version of a flow; acting on a
+  half-understood draft is worse than starting the step over.
 
 ## Status and handoff
 
@@ -162,39 +175,43 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 1  Domain + persistence: entities, schema, constraints, repositories
 [x] Phase 2  Money, dates, i18n: parser, formatter, compact input, date parser, catalog
 [x] Phase 3  Telegram plumbing: webhook, inbox, allowlist, lock, conversations, onboarding
-[ ] Phase 4  Categories and monthly budgets          <-- next
-[ ] Phase 5  Expenses: guided and compact entry, edit, delete, history
+[x] Phase 4  Categories and monthly budgets          <-- done
+[ ] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- next
 [ ] Phase 6  Category matching and keyword learning
 [ ] Phase 7  Summary and statistics
 [ ] Phase 8  Hardening: verified backups, runbook, rate limiting
 [ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
 ```
 
-**Verified working:** the bot answers `/start` and asks for a time zone, from a real Telegram
-account, in polling mode. 502 tests green, `dotnet build` with zero warnings, `dotnet format`
-clean.
+**Verified working:** the bot answers `/start`, asks for a time zone, and manages categories and
+monthly budgets from a real Telegram account, in polling mode: list, create, rename, change the
+icon, activate or deactivate, aliases with the conflict prompt, and set or copy a month's
+allocation. 582 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
 
-### Phase 4 scope — categories and monthly budgets
+### Phase 4 delivered — categories and monthly budgets
 
-Deliverables, all of them exercised through Telegram conversations:
+All exercised through Telegram conversations:
 
-- Category management: create, rename, change icon, activate and deactivate, and list.
-  Deletion is not offered; reactivation is offered instead when a name is reused.
-- Alias management: add and remove keywords per category, with the conflict prompt when a
-  term already belongs to another category.
-- Monthly budget: set the allocation for a category in a month, and list the month.
-- Explicitly copy the previous month's budget. Never automatic.
-- Budgets are editable for the current and future months only. Past months are immutable in
-  the product, and the interface must say so rather than silently refusing.
+- Category management: create, rename, change the icon, activate and deactivate, and list.
+  Deletion is not offered; reusing the name of a deactivated category reactivates it with its
+  history intact.
+- Alias management: add and remove keywords per category. A term that already belongs to
+  another category is a prompt, not a refusal: adding it anyway stores the ambiguity on purpose.
+- Monthly budget: the current month is listed, an allocation is set per category, and the
+  previous month's budget is copied only when the user asks.
+- Past months are immutable in the product. `IBudgetService` returns `PastMonth` rather than
+  silently refusing, and the flow renders the reason. The database does not enforce it, so data
+  repair stays possible.
 
-Use cases live in `MyBudget.Application`; the conversations in `MyBudget.Telegram` only
-collect input and render. Every new user-visible string goes in
-`Resources/Messages.resx` plus a constant in `MessageKeys`, or the catalog test fails —
-which is the intended behaviour.
+Application services: `ICategoryService`, `IBudgetService`, `IUserLocalDate` (the single place a
+UTC instant becomes the user's calendar date). Conversation: `CategoriesConversation`, split
+across three partial files (core, aliases, budgets).
 
-Exit criteria: integration tests for category CRUD, alias conflicts, allocation history and
-the copy-previous-month behaviour; conversation tests for each flow; and the bot answering the
-`🏷️ Categorías` menu item instead of "not ready yet".
+### Phase 5 scope — expenses core
+
+Next: guided and compact expense entry, the confirmation screen with pending actions, expense
+list and detail, edit and delete, and undo. `pending_actions` and the callback-data token
+scheme arrive here. Exit criteria: end-to-end flow tests for entry, edit, delete and undo.
 
 ### Commands to verify any change
 

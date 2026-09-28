@@ -228,6 +228,18 @@ Two behaviours settled during implementation:
   the substantive reply is the message that follows. A `CallbackAcknowledgement` field was
   designed, implemented, and then removed as dead configuration.
 
+Behaviours settled in Phase 4:
+
+- **A tap on the persistent menu aborts the active flow.** The router matches the menu before
+  delegating text to a conversation. Delegating first would swallow a label such as
+  `📊 Resumen` as flow input and, in the category flow, store it as a category name.
+- **A draft that identifies a large value carries the position, not the value.** Telegram caps
+  callback data at 64 bytes, so the alias screen lists remove buttons by index into a list held
+  in the conversation payload and removes the keyword by term afterwards. No user text is
+  trusted from a callback: the category is always re-read and ownership-checked.
+- **A conversation payload that cannot be read is treated as empty.** `jsonb` is canonicalised
+  by PostgreSQL and may have been written by an older version of a flow.
+
 ## 7. Monetary parsing architecture
 
 `IMoneyParser` is a pipeline of independently testable stages, and it never throws:
@@ -387,7 +399,8 @@ test proves the ambient culture is ignored.
   `&` can therefore never alter the message structure.
 - **Default category names are user data**: seeded from the catalog at onboarding and frozen
   at creation. Changing the user's language later does not rename existing categories.
-- Month and weekday names come from the catalog, not from ICU.
+- Month and weekday names come from the catalog, not from ICU. `MessageKeys.Months` is the
+  calendar order, so a period renders as `septiembre 2026` with no culture dependency.
 
 ## 11. Main Telegram UX flows
 
@@ -416,7 +429,8 @@ test proves the ambient culture is ignored.
    confirmation), back.
 7. **Categories** — create, rename, icon, aliases with conflict handling, activate/
    deactivate, set this month's allocation, copy last month. Deletion is not offered;
-   deactivation is, with an explanation.
+   deactivation is, with an explanation. Only the current month is editable, and the bot says
+   so rather than silently refusing; copying is always an explicit action.
 8. **Statistics** — by category with share, daily spending, largest expenses, average daily,
    period comparison that states when a period is incomplete.
 9. **Configuration** — language, time zone, currency (read-only until multi-currency),
@@ -431,7 +445,7 @@ test proves the ambient culture is ignored.
 | **1 Domain + persistence** | Entities, EF configurations, raw-SQL composite FKs, repositories, interceptor | Integration tests for constraints, user isolation, historical budgets — **done** |
 | **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code — **done** (97,5 % money, 100 % dates) |
 | **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row — **done** |
-| **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests |
+| **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests — **done** |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages |
@@ -581,13 +595,14 @@ Rules:
   better.
 
 Coverage today: money parsing and formatting (corpus plus FsCheck round-trip and
-never-throws properties), date parsing, the message catalog, the Telegram pipeline and its
-gates, conversation routing and onboarding, the update inbox, conversation state, the
-per-user lock, constraints, cross-user integrity (all four composite FKs), user isolation per
-repository, historical budget immutability, cascade and non-deletion behaviour, user erasure,
-orphan removal, migration guardrails, timestamp maintenance, allocation persistence,
-localization option validation, architecture and repository contract tests.
-474 tests, all green.
+never-throws properties), date parsing, the user's local calendar date, the message catalog, the
+Telegram pipeline and its gates, conversation routing and onboarding, the update inbox,
+conversation state, the per-user lock, category management and alias conflicts, the category and
+budget conversation flows, constraints, cross-user integrity (all four composite FKs), user
+isolation per repository, historical budget immutability, cascade and non-deletion behaviour,
+user erasure, orphan removal, migration guardrails, timestamp maintenance, allocation
+persistence, localization option validation, architecture and repository contract tests.
+582 tests, all green.
 
 ## 17. Backup strategy
 
