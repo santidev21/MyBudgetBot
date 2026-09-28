@@ -21,8 +21,12 @@ public sealed class MigrationTests(DatabaseFixture fixture) : DatabaseTestBase(f
         await migrator.MigrateAsync();
         await migrator.MigrateAsync();
 
-        var applied = await context.Database.GetAppliedMigrationsAsync();
-        applied.Should().ContainSingle("there is exactly one migration in the schema");
+        var applied = (await context.Database.GetAppliedMigrationsAsync()).ToList();
+        var available = context.Database.GetMigrations().ToList();
+
+        // Migrating again changes neither the schema nor the history.
+        applied.Should().BeEquivalentTo(available);
+        applied.Should().HaveCountGreaterThanOrEqualTo(2);
     }
 
     [Fact]

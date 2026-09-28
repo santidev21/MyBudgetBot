@@ -5,6 +5,7 @@ using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
+using MyBudget.Application.Users;
 
 namespace MyBudget.Application;
 
@@ -37,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IMoneyParser, MoneyParser>();
         services.AddSingleton<ICompactExpenseParser, CompactExpenseParser>();
         services.AddSingleton<IDateParser, DateParser>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }

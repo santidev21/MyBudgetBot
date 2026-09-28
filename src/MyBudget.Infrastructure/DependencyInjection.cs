@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Infrastructure.Persistence.Interceptors;
 using MyBudget.Infrastructure.Persistence.Repositories;
@@ -43,6 +44,12 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
+        services.AddScoped<IUpdateInbox, UpdateInbox>();
+        services.AddScoped<IConversationStore, ConversationStore>();
+        services.AddScoped<IUserWorkLock, UserWorkLock>();
+
+        // Keeps the update inbox from growing for the lifetime of the deployment.
+        services.AddHostedService<UpdateInboxCleanupService>();
 
         return services;
     }

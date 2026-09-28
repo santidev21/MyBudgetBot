@@ -51,10 +51,20 @@ public sealed class User : Entity
     /// Refreshes the profile snapshot from Telegram. Both values are display-only and
     /// must never be used as identity.
     /// </summary>
-    public void UpdateProfile(string? username, string? displayName)
+    /// <returns><c>true</c> when something actually changed, so callers can avoid a write.</returns>
+    public bool UpdateProfile(string? username, string? displayName)
     {
-        Username = Truncate(username, MaxUsernameLength);
-        DisplayName = Truncate(displayName, MaxDisplayNameLength);
+        var normalizedUsername = Truncate(username, MaxUsernameLength);
+        var normalizedDisplayName = Truncate(displayName, MaxDisplayNameLength);
+
+        if (normalizedUsername == Username && normalizedDisplayName == DisplayName)
+        {
+            return false;
+        }
+
+        Username = normalizedUsername;
+        DisplayName = normalizedDisplayName;
+        return true;
     }
 
     public void ChangeCurrency(string currency)

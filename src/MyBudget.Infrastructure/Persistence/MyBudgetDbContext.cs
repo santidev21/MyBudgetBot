@@ -3,6 +3,7 @@ using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
 using MyBudget.Domain.Expenses;
 using MyBudget.Domain.Users;
+using MyBudget.Infrastructure.Persistence.Records;
 
 namespace MyBudget.Infrastructure.Persistence;
 
@@ -19,6 +20,10 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
     public DbSet<MonthlyBudgetCategory> MonthlyBudgetCategories => Set<MonthlyBudgetCategory>();
 
     public DbSet<Expense> Expenses => Set<Expense>();
+
+    internal DbSet<TelegramUpdateRecord> TelegramUpdates => Set<TelegramUpdateRecord>();
+
+    internal DbSet<ConversationStateRecord> ConversationStates => Set<ConversationStateRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

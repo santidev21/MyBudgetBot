@@ -2,9 +2,12 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MyBudget.Application;
+using MyBudget.Application.Abstractions.Persistence;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
+using MyBudget.Application.Users;
+using NSubstitute;
 
 namespace MyBudget.Application.Tests;
 
@@ -12,7 +15,7 @@ namespace MyBudget.Application.Tests;
 /// The service graph, validated as it is built.
 /// <para>
 /// A missing registration is otherwise discovered by whoever first calls the dependency, in
-/// production. <c>ValidateOnBuild</c> turns that into a build-time failure here.
+/// production. <c>ValidateOnBuild</c> turns that into a failure here.
 /// </para>
 /// </summary>
 public sealed class ApplicationServiceRegistrationTests
@@ -30,6 +33,11 @@ public sealed class ApplicationServiceRegistrationTests
         var services = new ServiceCollection();
         services.AddApplication(configuration);
 
+        // The application layer owns these contracts; their implementations live in
+        // infrastructure. Substitutes keep this test about the application graph only.
+        services.AddScoped(_ => Substitute.For<IUserRepository>());
+        services.AddScoped(_ => Substitute.For<IUnitOfWork>());
+
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,
@@ -41,24 +49,28 @@ public sealed class ApplicationServiceRegistrationTests
     public void Every_registered_service_can_be_constructed()
     {
         using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
 
-        provider.GetRequiredService<IUserMessages>().Should().BeOfType<ResourceUserMessages>();
-        provider.GetRequiredService<ICurrencyRegistry>().All.Should().NotBeEmpty();
-        provider.GetRequiredService<IMoneyFormatter>().Should().BeOfType<MoneyFormatter>();
-        provider.GetRequiredService<IMoneyParser>().Should().BeOfType<MoneyParser>();
-        provider.GetRequiredService<ICompactExpenseParser>().Should().BeOfType<CompactExpenseParser>();
-        provider.GetRequiredService<IDateParser>().Should().BeOfType<DateParser>();
+        // Scoped services resolve from a scope, exactly as they do in a request.
+        scope.ServiceProvider.GetRequiredService<IUserMessages>().Should().BeOfType<ResourceUserMessages>();
+        scope.ServiceProvider.GetRequiredService<ICurrencyRegistry>().All.Should().NotBeEmpty();
+        scope.ServiceProvider.GetRequiredService<IMoneyFormatter>().Should().BeOfType<MoneyFormatter>();
+        scope.ServiceProvider.GetRequiredService<IMoneyParser>().Should().BeOfType<MoneyParser>();
+        scope.ServiceProvider.GetRequiredService<ICompactExpenseParser>().Should().BeOfType<CompactExpenseParser>();
+        scope.ServiceProvider.GetRequiredService<IDateParser>().Should().BeOfType<DateParser>();
+        scope.ServiceProvider.GetRequiredService<IUserService>().Should().BeOfType<UserService>();
     }
 
     [Fact]
     public void The_registered_parser_works_end_to_end_through_the_container()
     {
         using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
 
-        var parser = provider.GetRequiredService<IMoneyParser>();
-        var formatter = provider.GetRequiredService<IMoneyFormatter>();
+        var parser = scope.ServiceProvider.GetRequiredService<IMoneyParser>();
+        var formatter = scope.ServiceProvider.GetRequiredService<IMoneyFormatter>();
+        var prompt = scope.ServiceProvider.GetRequiredService<IUserMessages>();
 
-        var prompt = provider.GetRequiredService<IUserMessages>();
         prompt.Get("es", MessageKeys.AmountPrompt).Should().Be("¿Cuánto gastaste?");
 
         var result = parser.Parse("35 mil", "COP");
