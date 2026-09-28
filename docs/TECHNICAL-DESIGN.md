@@ -240,6 +240,23 @@ Behaviours settled in Phase 4:
 - **A conversation payload that cannot be read is treated as empty.** `jsonb` is canonicalised
   by PostgreSQL and may have been written by an older version of a flow.
 
+Behaviours settled in Phase 5:
+
+- **A confirmation is claimed, not re-read.** The draft lives in `pending_actions`, and the
+  callback carries only its identifier (`v1|expense|<id>`). Consumption is one conditional
+  `UPDATE` over ownership, expiry and `consumed_at IS NULL`, so a double tap or a replayed
+  callback registers one expense. `ExecuteUpdateAsync` bypasses the change tracker, so the draft
+  is read back untracked.
+- **Global callbacks run when no conversation is active.** `↩️ Deshacer` sits on the message
+  that follows a completed registration, so the router cannot require a conversation for it.
+  `IGlobalCallback` handlers are tried before a callback is declared expired; an unrecognised
+  callback still expires.
+- **Compact and guided entry share one confirmation.** `ICompactExpenseParser` decides amount and
+  description; the conversation decides the rest. Two plausible amounts ask instead of guessing,
+  and a bare number answers "how much?" and asks for the description.
+- **A listing that short-circuits keeps its notices.** The month list reported "nothing to show"
+  and dropped the "deleted" notice when a delete emptied the month.
+
 ## 7. Monetary parsing architecture
 
 `IMoneyParser` is a pipeline of independently testable stages, and it never throws:
@@ -446,7 +463,7 @@ test proves the ambient culture is ignored.
 | **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code — **done** (97,5 % money, 100 % dates) |
 | **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row — **done** |
 | **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests — **done** |
-| **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests |
+| **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests — **done** |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout |
@@ -596,13 +613,14 @@ Rules:
 
 Coverage today: money parsing and formatting (corpus plus FsCheck round-trip and
 never-throws properties), date parsing, the user's local calendar date, the message catalog, the
-Telegram pipeline and its gates, conversation routing and onboarding, the update inbox,
-conversation state, the per-user lock, category management and alias conflicts, the category and
-budget conversation flows, constraints, cross-user integrity (all four composite FKs), user
-isolation per repository, historical budget immutability, cascade and non-deletion behaviour,
-user erasure, orphan removal, migration guardrails, timestamp maintenance, allocation
-persistence, localization option validation, architecture and repository contract tests.
-582 tests, all green.
+Telegram pipeline and its gates, conversation routing and onboarding, global callbacks, the
+update inbox, conversation state, the per-user lock, category management and alias conflicts,
+the category and budget conversation flows, the guided and compact expense flows, the
+consume-once confirmation, expense persistence, constraints, cross-user integrity (all four
+composite FKs), user isolation per repository, historical budget immutability, cascade and
+non-deletion behaviour, user erasure, orphan removal, migration guardrails, timestamp
+maintenance, allocation persistence, localization option validation, architecture and repository
+contract tests. 632 tests, all green.
 
 ## 17. Backup strategy
 

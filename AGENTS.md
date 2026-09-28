@@ -164,6 +164,15 @@ Database and application ports are never published in production.
 - **A conversation payload that cannot be read is treated as empty.** `jsonb` is canonicalised
   by PostgreSQL and may have been written by an older version of a flow; acting on a
   half-understood draft is worse than starting the step over.
+- **A confirmation is claimed, never re-read.** The draft lives in `pending_actions` and is
+  consumed with one conditional `UPDATE` (`consumed_at IS NULL`). The callback carries only the
+  pending id, so a replayed or forged callback reads nothing and acts once.
+- **Some callbacks arrive after the flow is gone.** `↩️ Deshacer` sits on the message that
+  follows a completed registration. `ConversationRouter` therefore runs `IGlobalCallback`
+  handlers when no conversation is active, before declaring the callback expired.
+- **An empty listing must still carry the notices it was given.** The month list reported
+  "nothing to show" and dropped the "deleted" notice when a delete emptied the month. Any
+  builder that short-circuits has to keep its prefix responses.
 
 ## Status and handoff
 
@@ -176,17 +185,17 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 2  Money, dates, i18n: parser, formatter, compact input, date parser, catalog
 [x] Phase 3  Telegram plumbing: webhook, inbox, allowlist, lock, conversations, onboarding
 [x] Phase 4  Categories and monthly budgets          <-- done
-[ ] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- next
-[ ] Phase 6  Category matching and keyword learning
+[x] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- done
+[ ] Phase 6  Category matching and keyword learning   <-- next
 [ ] Phase 7  Summary and statistics
 [ ] Phase 8  Hardening: verified backups, runbook, rate limiting
 [ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
 ```
 
-**Verified working:** the bot answers `/start`, asks for a time zone, and manages categories and
-monthly budgets from a real Telegram account, in polling mode: list, create, rename, change the
-icon, activate or deactivate, aliases with the conflict prompt, and set or copy a month's
-allocation. 582 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
+**Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
+account (in production over the webhook, in development over polling) it manages categories and
+monthly budgets, records expenses both guided and compact, edits and deletes them, and undoes a
+registration. 632 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -207,11 +216,32 @@ Application services: `ICategoryService`, `IBudgetService`, `IUserLocalDate` (th
 UTC instant becomes the user's calendar date). Conversation: `CategoriesConversation`, split
 across three partial files (core, aliases, budgets).
 
-### Phase 5 scope — expenses core
+### Phase 5 delivered — expenses core
 
-Next: guided and compact expense entry, the confirmation screen with pending actions, expense
-list and detail, edit and delete, and undo. `pending_actions` and the callback-data token
-scheme arrive here. Exit criteria: end-to-end flow tests for entry, edit, delete and undo.
+All exercised through Telegram conversations:
+
+- Guided entry: amount, description, category, date, then a confirmation. Compact entry
+  (`35.000 verduras`) joins the same confirmation with the amount and description already
+  known; a bare amount asks for the description and an ambiguous one asks which amount.
+- The confirmation stores the draft in `pending_actions` and the button carries only its
+  identifier. Consumption is a single conditional `UPDATE`, so a double tap registers one
+  expense. `↩️ Deshacer` deletes it and works as a global callback, after the flow has ended.
+- `📋 Gastos` lists the current month, opens a detail screen, and offers edit (amount,
+  description, category, date) and delete behind a confirmation.
+
+Application service: `IExpenseService`. Conversations: `ExpenseConversation` (entry),
+`ExpensesConversation` (list, detail, edit, delete) and `ExpenseUndoHandler` (global action).
+Storage: `IPendingActionStore` with the `pending_actions` table.
+
+### Phase 6 scope — category matching and keyword learning
+
+Next: the deterministic matcher described in `docs/TECHNICAL-DESIGN.md` §9. It scores the user's
+aliases and category names against a free-text description, and the entry confirmation uses the
+suggestion: `Matched` auto-selects with a confirmation, `Ambiguous` asks which category, `None`
+offers to save the term as a keyword. Fuzzy matching stays off by default
+(`CategoryMatching:EnableFuzzy=false`). Exit criteria: the matcher corpus including ambiguity,
+and the "learn this keyword" flow with its conflict prompt. The `categories` alias screens that
+store the keywords already ship; Phase 6 is what reads them.
 
 ### Commands to verify any change
 
