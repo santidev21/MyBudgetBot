@@ -109,6 +109,8 @@ public sealed class CategoriesConversationBudgetTests
         prompt.NextState.Should().Be("awaiting-budget-amount");
         prompt.Responses.Last().Text.Should().Be(
             harness.Messages.Get("es", MessageKeys.BudgetAmountPrompt, "Mercado"));
+        prompt.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
+            .Should().Contain(button => button.CallbackData == "cats:budget", "the amount prompt goes back");
 
         var saved = await harness.Router.RouteTextAsync(
             ContextFor(

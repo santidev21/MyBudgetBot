@@ -30,6 +30,7 @@ internal sealed partial class CategoriesConversation(
 
     private const string CallbackPrefix = "cats:";
     private const string ListCallback = CallbackPrefix + "list";
+    private const string DetailCallback = CallbackPrefix + "detail";
     private const string NewCallback = CallbackPrefix + "new";
     private const string OpenPrefix = CallbackPrefix + "open:";
     private const string RenameCallback = CallbackPrefix + "rename";
@@ -88,7 +89,7 @@ internal sealed partial class CategoriesConversation(
         {
             return Prompt(
                 context, AwaitingNameState, new CategoriesPayload(),
-                MessageKeys.CategoryNamePrompt, allowSkip: false);
+                MessageKeys.CategoryNamePrompt, allowSkip: false, backCallback: ListCallback);
         }
 
         if (data == ListCallback)
@@ -96,12 +97,19 @@ internal sealed partial class CategoriesConversation(
             return await BuildListAsync(context, cancellationToken, []);
         }
 
+        if (data == DetailCallback)
+        {
+            return payload.CategoryId is { } detailId
+                ? await BuildDetailAsync(context, detailId, cancellationToken, [])
+                : await BuildListAsync(context, cancellationToken, []);
+        }
+
         if (data == RenameCallback)
         {
             return payload.CategoryId is { } renameId
                 ? Prompt(
                     context, AwaitingRenameState, payload,
-                    MessageKeys.CategoryRenamePrompt, allowSkip: false)
+                    MessageKeys.CategoryRenamePrompt, allowSkip: false, backCallback: DetailCallback)
                 : await BuildListAsync(context, cancellationToken, []);
         }
 
@@ -110,7 +118,7 @@ internal sealed partial class CategoriesConversation(
             return payload.CategoryId is not null
                 ? Prompt(
                     context, AwaitingIconChangeState, payload,
-                    MessageKeys.CategoryIconChangePrompt, allowSkip: false)
+                    MessageKeys.CategoryIconChangePrompt, allowSkip: false, backCallback: DetailCallback)
                 : await BuildListAsync(context, cancellationToken, []);
         }
 
@@ -233,13 +241,13 @@ internal sealed partial class CategoriesConversation(
         {
             return Task.FromResult(Prompt(
                 context, AwaitingNameState, new CategoriesPayload(),
-                MessageKeys.CategoryNamePrompt, allowSkip: false,
+                MessageKeys.CategoryNamePrompt, allowSkip: false, backCallback: ListCallback,
                 Said(context, MessageKeys.CategoryNameInvalid, BudgetCategory.MaxNameLength)));
         }
 
         return Task.FromResult(Prompt(
             context, AwaitingIconState, new CategoriesPayload { Name = name },
-            MessageKeys.CategoryIconPrompt, allowSkip: true));
+            MessageKeys.CategoryIconPrompt, allowSkip: true, backCallback: NewCallback));
     }
 
     private async Task<ConversationTurn> HandleIconAsync(
@@ -255,7 +263,7 @@ internal sealed partial class CategoriesConversation(
         {
             return Prompt(
                 context, AwaitingIconState, new CategoriesPayload { Name = name },
-                MessageKeys.CategoryIconPrompt, allowSkip: true,
+                MessageKeys.CategoryIconPrompt, allowSkip: true, backCallback: NewCallback,
                 Said(context, MessageKeys.CategoryIconInvalid, BudgetCategory.MaxIconLength));
         }
 
@@ -270,7 +278,7 @@ internal sealed partial class CategoriesConversation(
                 context, cancellationToken, [Said(context, MessageKeys.CategoryReactivated)]),
             CategoryChangeStatus.NameTaken => Prompt(
                 context, AwaitingNameState, new CategoriesPayload(),
-                MessageKeys.CategoryNamePrompt, allowSkip: false,
+                MessageKeys.CategoryNamePrompt, allowSkip: false, backCallback: ListCallback,
                 Said(context, MessageKeys.CategoryNameTaken)),
             _ => await BuildListAsync(context, cancellationToken, []),
         };
@@ -289,7 +297,7 @@ internal sealed partial class CategoriesConversation(
         {
             return Prompt(
                 context, AwaitingRenameState, new CategoriesPayload().WithCategory(id),
-                MessageKeys.CategoryRenamePrompt, allowSkip: false,
+                MessageKeys.CategoryRenamePrompt, allowSkip: false, backCallback: DetailCallback,
                 Said(context, MessageKeys.CategoryNameInvalid, BudgetCategory.MaxNameLength));
         }
 
@@ -301,7 +309,7 @@ internal sealed partial class CategoriesConversation(
                 context, id, cancellationToken, [Said(context, MessageKeys.CategoryRenamed)]),
             CategoryChangeStatus.NameTaken => Prompt(
                 context, AwaitingRenameState, new CategoriesPayload().WithCategory(id),
-                MessageKeys.CategoryRenamePrompt, allowSkip: false,
+                MessageKeys.CategoryRenamePrompt, allowSkip: false, backCallback: DetailCallback,
                 Said(context, MessageKeys.CategoryNameTaken)),
             _ => await BuildListAsync(
                 context, cancellationToken, [Said(context, MessageKeys.CategoryNotFound)]),
@@ -321,7 +329,7 @@ internal sealed partial class CategoriesConversation(
         {
             return Prompt(
                 context, AwaitingIconChangeState, new CategoriesPayload().WithCategory(id),
-                MessageKeys.CategoryIconChangePrompt, allowSkip: false,
+                MessageKeys.CategoryIconChangePrompt, allowSkip: false, backCallback: DetailCallback,
                 Said(context, MessageKeys.CategoryIconInvalid, BudgetCategory.MaxIconLength));
         }
 
@@ -358,8 +366,9 @@ internal sealed partial class CategoriesConversation(
         CategoriesPayload payload,
         string promptKey,
         bool allowSkip,
+        string? backCallback,
         params BotResponse[] notices) =>
-        PromptTurn(context, state, payload, promptKey, allowSkip, notices, []);
+        PromptTurn(context, state, payload, promptKey, allowSkip, backCallback, notices, []);
 
     private ConversationTurn PromptTurn(
         ConversationContext context,
@@ -367,25 +376,36 @@ internal sealed partial class CategoriesConversation(
         CategoriesPayload payload,
         string promptKey,
         bool allowSkip,
+        string? backCallback,
         IReadOnlyList<BotResponse> notices,
         object?[] promptArgs)
     {
         var language = context.Language;
-        var buttons = new List<BotButton>();
+        var rows = new List<BotButton[]>();
 
         if (allowSkip)
         {
-            buttons.Add(new BotButton(
-                messages.Get(language, MessageKeys.CategoryButtonSkip), IconSkipCallback));
+            rows.Add([new BotButton(
+                messages.Get(language, MessageKeys.CategoryButtonSkip), IconSkipCallback)]);
         }
 
-        buttons.Add(new BotButton(messages.Get(language, MessageKeys.ButtonCancel), CancelCallback));
+        // Every prompt offers a way back to the step it came from, so a mistap never forces the
+        // user to leave the whole flow: Cancelar closes it, Volver steps back one screen.
+        var navigation = new List<BotButton>();
+        if (backCallback is not null)
+        {
+            navigation.Add(new BotButton(
+                messages.Get(language, MessageKeys.CategoryButtonBack), backCallback));
+        }
+
+        navigation.Add(new BotButton(messages.Get(language, MessageKeys.ButtonCancel), CancelCallback));
+        rows.Add([.. navigation]);
 
         var responses = new List<BotResponse>(notices)
         {
             BotResponse.Message(
                 messages.Get(language, promptKey, promptArgs),
-                BotKeyboard.Inline([.. buttons])),
+                BotKeyboard.Inline([.. rows])),
         };
 
         return new ConversationTurn(responses)

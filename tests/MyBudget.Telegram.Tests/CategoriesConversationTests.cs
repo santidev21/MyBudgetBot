@@ -97,6 +97,8 @@ public sealed class CategoriesConversationTests
         newPrompt.NextState.Should().Be("awaiting-name");
         newPrompt.Responses.Last().Text.Should().Be(
             harness.Messages.Get("es", MessageKeys.CategoryNamePrompt));
+        newPrompt.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
+            .Should().Contain(button => button.CallbackData == "cats:list", "the prompt can go back");
 
         var iconPrompt = await harness.Router.RouteTextAsync(
             ContextFor(harness, "awaiting-name"), "Mercado", CancellationToken.None);
@@ -104,6 +106,8 @@ public sealed class CategoriesConversationTests
         iconPrompt.NextState.Should().Be("awaiting-icon");
         iconPrompt.Responses.Last().Text.Should().Be(
             harness.Messages.Get("es", MessageKeys.CategoryIconPrompt));
+        iconPrompt.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
+            .Should().Contain(button => button.CallbackData == "cats:new", "the icon step goes back to the name");
     }
 
     [Fact]
@@ -212,6 +216,8 @@ public sealed class CategoriesConversationTests
             CancellationToken.None);
 
         prompt.NextState.Should().Be("awaiting-rename");
+        prompt.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
+            .Should().Contain(button => button.CallbackData == "cats:detail", "the rename prompt goes back");
 
         var turn = await harness.Router.RouteTextAsync(
             ContextFor(harness, "awaiting-rename", new CategoriesPayload { CategoryId = category.Id }),

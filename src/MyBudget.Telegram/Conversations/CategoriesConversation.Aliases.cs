@@ -92,7 +92,7 @@ internal sealed partial class CategoriesConversation
         {
             return Prompt(
                 context, AwaitingAliasState, payload,
-                MessageKeys.AliasPrompt, allowSkip: false,
+                MessageKeys.AliasPrompt, allowSkip: false, backCallback: AliasesCallback,
                 Said(context, MessageKeys.AliasInvalid, BudgetCategory.MaxAliasLength));
         }
 
@@ -117,7 +117,7 @@ internal sealed partial class CategoriesConversation
                 ? await BuildListAsync(context, cancellationToken, [])
                 : Prompt(
                     context, AwaitingAliasState, payload,
-                    MessageKeys.AliasPrompt, allowSkip: false);
+                    MessageKeys.AliasPrompt, allowSkip: false, backCallback: AliasesCallback);
         }
 
         if (data == AliasBackCallback)

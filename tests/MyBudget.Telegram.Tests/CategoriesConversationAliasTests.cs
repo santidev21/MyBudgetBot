@@ -106,6 +106,23 @@ public sealed class CategoriesConversationAliasTests
     }
 
     [Fact]
+    public async Task The_alias_prompt_offers_a_way_back_to_the_screen()
+    {
+        var harness = TelegramHarness.Build();
+        var category = new BudgetCategory(harness.User.Id, "Mercado");
+        var harness2 = HarnessWith(category);
+
+        var turn = await harness2.Router.RouteCallbackAsync(
+            ContextFor(harness2, "aliases", new CategoriesPayload { CategoryId = category.Id }),
+            new IncomingCallback("cb", "cats:alias:add"),
+            CancellationToken.None);
+
+        turn.NextState.Should().Be("awaiting-alias");
+        turn.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
+            .Should().Contain(button => button.CallbackData == "cats:aliases");
+    }
+
+    [Fact]
     public async Task A_keyword_already_in_the_category_reports_a_duplicate()
     {
         var harness = TelegramHarness.Build();

@@ -130,7 +130,7 @@ internal sealed partial class CategoriesConversation
             // the user simply types it again. No separate magnitude confirmation state.
             return PromptTurn(
                 context, AwaitingBudgetAmountState, payload,
-                MessageKeys.BudgetAmountPrompt, false,
+                MessageKeys.BudgetAmountPrompt, false, BudgetCallback,
                 [Said(context, MessageKeys.BudgetAmountInvalid)],
                 [payload.Name ?? string.Empty]);
         }
@@ -198,7 +198,7 @@ internal sealed partial class CategoriesConversation
 
             return PromptTurn(
                 context, AwaitingBudgetAmountState, draft,
-                MessageKeys.BudgetAmountPrompt, false,
+                MessageKeys.BudgetAmountPrompt, false, BudgetCallback,
                 [],
                 [category.Name]);
         }
