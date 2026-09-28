@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
         services.AddScoped<IUpdateInbox, UpdateInbox>();
         services.AddScoped<IConversationStore, ConversationStore>();
+        services.AddScoped<IPendingActionStore, PendingActionStore>();
         services.AddScoped<IUserWorkLock, UserWorkLock>();
 
         // Keeps the update inbox from growing for the lifetime of the deployment.

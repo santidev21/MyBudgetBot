@@ -25,6 +25,8 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
 
     internal DbSet<ConversationStateRecord> ConversationStates => Set<ConversationStateRecord>();
 
+    internal DbSet<PendingActionRecord> PendingActions => Set<PendingActionRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

@@ -54,3 +54,26 @@ internal sealed class ConversationStateRecord
 
     public DateTimeOffset UpdatedAt { get; set; }
 }
+
+/// <summary>
+/// A draft waiting for one confirmation from the user. Consumed exactly once, so a replayed
+/// callback cannot act twice.
+/// </summary>
+internal sealed class PendingActionRecord
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    /// <summary>Which flow the draft belongs to, for example <c>expense</c>.</summary>
+    public string Action { get; set; } = string.Empty;
+
+    /// <summary>Opaque to the database: the presentation layer owns its shape.</summary>
+    public string Payload { get; set; } = "{}";
+
+    public DateTimeOffset? ConsumedAt { get; set; }
+
+    public DateTimeOffset ExpiresAt { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+}
