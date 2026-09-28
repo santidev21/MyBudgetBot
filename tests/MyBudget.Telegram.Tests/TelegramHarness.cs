@@ -79,11 +79,13 @@ internal sealed class TelegramHarness
 
         UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
 
+        ExpenseList = new ExpensesConversation(Messages, ExpenseService, formatter, localDate, Menu);
+
         Router = new ConversationRouter(
             Conversations,
             Messages,
             Menu,
-            [Onboarding, Categories, Expenses],
+            [Onboarding, Categories, Expenses, ExpenseList],
             [UndoHandler],
             compactParser,
             telegramOptions,
@@ -127,6 +129,8 @@ internal sealed class TelegramHarness
     public IPendingActionStore PendingActions { get; }
 
     public ExpenseConversation Expenses { get; }
+
+    public ExpensesConversation ExpenseList { get; }
 
     public ExpenseUndoHandler UndoHandler { get; }
 

@@ -218,6 +218,9 @@
   <data name="Buttons.Yesterday" xml:space="preserve">
     <value>📅 Ayer</value>
   </data>
+  <data name="Buttons.Back" xml:space="preserve">
+    <value>↩️ Volver</value>
+  </data>
 
   <data name="Category.ListHeader" xml:space="preserve">
     <value>Estas son tus categorías. Toca una para administrarla.</value>

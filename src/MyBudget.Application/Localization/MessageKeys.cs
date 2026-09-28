@@ -82,6 +82,7 @@ public static class MessageKeys
     public const string ButtonDelete = "Buttons.Delete";
     public const string ButtonToday = "Buttons.Today";
     public const string ButtonYesterday = "Buttons.Yesterday";
+    public const string ButtonBack = "Buttons.Back";
 
     public const string CategoryListHeader = "Category.ListHeader";
     public const string CategoryListEmpty = "Category.ListEmpty";
@@ -221,6 +222,7 @@ public static class MessageKeys
         ButtonDelete,
         ButtonToday,
         ButtonYesterday,
+        ButtonBack,
         CategoryListHeader,
         CategoryListEmpty,
         CategoryButtonNew,

@@ -143,6 +143,22 @@ public sealed class ExpenseServiceTests
     }
 
     [Fact]
+    public async Task Getting_one_expense_returns_its_category_label()
+    {
+        var category = new BudgetCategory(UserId, "Mercado", "🛒");
+        var expense = new Expense(UserId, category.Id, 35_000, "Verduras", Today, Today);
+        _expenses.FindByIdAsync(UserId, expense.Id, Arg.Any<CancellationToken>()).Returns(expense);
+        _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
+
+        var item = await _service.GetItemAsync(UserId, expense.Id);
+
+        item.Should().NotBeNull();
+        item!.CategoryName.Should().Be("Mercado");
+        item.Icon.Should().Be("🛒");
+        item.Amount.Should().Be(35_000);
+    }
+
+    [Fact]
     public async Task The_month_list_joins_category_labels_and_keeps_deactivated_categories()
     {
         var active = new BudgetCategory(UserId, "Mercado", "🛒");

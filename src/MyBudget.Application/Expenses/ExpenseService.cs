@@ -1,5 +1,6 @@
 using MyBudget.Application.Abstractions.Persistence;
 using MyBudget.Domain.Budgets;
+using MyBudget.Domain.Categories;
 using MyBudget.Domain.Expenses;
 
 namespace MyBudget.Application.Expenses;
@@ -74,6 +75,10 @@ public interface IExpenseService
     Task<Expense?> GetAsync(
         Guid userId, Guid expenseId, CancellationToken cancellationToken = default);
 
+    /// <summary>A single expense with its category label, for the detail screen.</summary>
+    Task<ExpenseListItem?> GetItemAsync(
+        Guid userId, Guid expenseId, CancellationToken cancellationToken = default);
+
     /// <summary>The month's expenses, newest first, with their category label.</summary>
     Task<IReadOnlyList<ExpenseListItem>> ListMonthAsync(
         Guid userId, MonthPeriod period, CancellationToken cancellationToken = default);
@@ -134,6 +139,19 @@ public sealed class ExpenseService(
         Guid userId, Guid expenseId, CancellationToken cancellationToken = default)
         => expenses.FindByIdAsync(userId, expenseId, cancellationToken);
 
+    public async Task<ExpenseListItem?> GetItemAsync(
+        Guid userId, Guid expenseId, CancellationToken cancellationToken = default)
+    {
+        var expense = await expenses.FindByIdAsync(userId, expenseId, cancellationToken);
+        if (expense is null)
+        {
+            return null;
+        }
+
+        var category = await categories.FindByIdAsync(userId, expense.CategoryId, cancellationToken);
+        return ToItem(expense, category);
+    }
+
     public async Task<IReadOnlyList<ExpenseListItem>> ListMonthAsync(
         Guid userId, MonthPeriod period, CancellationToken cancellationToken = default)
     {
@@ -142,21 +160,20 @@ public sealed class ExpenseService(
         var byId = allCategories.ToDictionary(category => category.Id);
 
         return monthExpenses
-            .Select(expense =>
-            {
-                var category = byId.GetValueOrDefault(expense.CategoryId);
-                return new ExpenseListItem(
-                    expense.Id,
-                    expense.CategoryId,
-                    category?.Name ?? string.Empty,
-                    category?.Icon ?? string.Empty,
-                    expense.Amount,
-                    expense.Description,
-                    expense.ExpenseDate,
-                    expense.CategorizationSource);
-            })
+            .Select(expense => ToItem(expense, byId.GetValueOrDefault(expense.CategoryId)))
             .ToList();
     }
+
+    private static ExpenseListItem ToItem(Expense expense, BudgetCategory? category) =>
+        new(
+            expense.Id,
+            expense.CategoryId,
+            category?.Name ?? string.Empty,
+            category?.Icon ?? string.Empty,
+            expense.Amount,
+            expense.Description,
+            expense.ExpenseDate,
+            expense.CategorizationSource);
 
     public async Task<ExpenseChangeResult> UpdateAsync(
         Guid userId,

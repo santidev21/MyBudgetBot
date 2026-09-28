@@ -133,6 +133,7 @@ internal sealed class ConversationRouter(
         {
             MessageKeys.MenuCategories => CategoriesConversation.ConversationName,
             MessageKeys.MenuAddExpense => ExpenseConversation.ConversationName,
+            MessageKeys.MenuExpenses => ExpensesConversation.ConversationName,
             _ => null,
         };
 
