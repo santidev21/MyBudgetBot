@@ -14,6 +14,7 @@ public sealed class RepositoryContractTests
     [Theory]
     [InlineData(typeof(ICategoryRepository))]
     [InlineData(typeof(IExpenseRepository))]
+    [InlineData(typeof(IExpenseReadRepository))]
     [InlineData(typeof(IBudgetRepository))]
     public void Every_query_requires_the_owner_id_as_the_first_parameter(Type repositoryInterface)
     {

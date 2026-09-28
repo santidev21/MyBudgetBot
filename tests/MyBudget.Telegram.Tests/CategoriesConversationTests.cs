@@ -296,7 +296,7 @@ public sealed class CategoriesConversationTests
 
         var turn = await harness.Router.RouteTextAsync(
             ContextFor(harness, "awaiting-name"),
-            harness.Messages.Get("es", MessageKeys.MenuStatistics),
+            harness.Messages.Get("es", MessageKeys.MenuSettings),
             CancellationToken.None);
 
         turn.Completed.Should().BeTrue();

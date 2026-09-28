@@ -1,15 +1,18 @@
+using System.Globalization;
 using MyBudget.Application.Categories;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
+using MyBudget.Application.Reporting;
 using MyBudget.Domain.Budgets;
 using MyBudget.Telegram.Presentation;
 
 namespace MyBudget.Telegram.Conversations;
 
 /// <summary>
-/// The month's expenses: list, detail and delete.
+/// The expense history: a date range, grouped by day, paged with a keyset cursor, with the
+/// detail and edit screens off each listed expense.
 /// <para>
 /// The list opens the detail; the detail offers delete behind a confirmation. Editing is a
 /// separate slice of the same flow.
@@ -18,6 +21,7 @@ namespace MyBudget.Telegram.Conversations;
 internal sealed class ExpensesConversation(
     IUserMessages messages,
     IExpenseService expenses,
+    IReportService reports,
     ICategoryService categories,
     IMoneyParser moneyParser,
     IMoneyFormatter moneyFormatter,
@@ -42,6 +46,15 @@ internal sealed class ExpensesConversation(
     private const string SkipCallback = "exps:skip";
     private const string TodayCallback = "exps:today";
     private const string YesterdayCallback = "exps:yesterday";
+    private const string MoreCallback = "exps:more";
+    private const string PreviousPageCallback = "exps:prevpage";
+    private const string RangeThisMonthCallback = "exps:range:month";
+    private const string RangeLastMonthCallback = "exps:range:prev";
+    private const string RangeLastThreeMonthsCallback = "exps:range:3m";
+    private const string RangeThisYearCallback = "exps:range:year";
+
+    /// <summary>How many expenses one history page shows before "see more".</summary>
+    private const int PageSize = 10;
 
     private const string ListState = "list";
     private const string DetailState = "detail";
@@ -86,6 +99,23 @@ internal sealed class ExpensesConversation(
         if (data == ListCallback)
         {
             return await BuildListAsync(context, [], cancellationToken);
+        }
+
+        if (data == MoreCallback)
+        {
+            return payload.Next is null
+                ? await BuildListAsync(context, [], cancellationToken)
+                : await NextPageAsync(context, payload, cancellationToken);
+        }
+
+        if (data == PreviousPageCallback)
+        {
+            return await PreviousPageAsync(context, payload, cancellationToken);
+        }
+
+        if (RangeFor(context, data) is { } range)
+        {
+            return await BuildListAsync(context, payload.WithRange(range), [], cancellationToken);
         }
 
         if (data == DeleteCallback)
@@ -179,47 +209,194 @@ internal sealed class ExpensesConversation(
         return await BuildListAsync(context, [], cancellationToken);
     }
 
+    private Task<ConversationTurn> BuildListAsync(
+        ConversationContext context,
+        IReadOnlyList<BotResponse> notices,
+        CancellationToken cancellationToken) =>
+        BuildListAsync(
+            context,
+            ExpensesPayload.Parse(context.Conversation?.Payload),
+            notices,
+            cancellationToken);
+
     private async Task<ConversationTurn> BuildListAsync(
         ConversationContext context,
+        ExpensesPayload payload,
         IReadOnlyList<BotResponse> notices,
         CancellationToken cancellationToken)
     {
         var language = context.Language;
-        var period = CurrentPeriod(context);
-        var items = await expenses.ListMonthAsync(context.User.Id, period, cancellationToken);
+        var range = payload.Range ?? CurrentRange(context);
 
-        if (items.Count == 0)
-        {
-            var empty = new List<BotResponse>(notices)
-            {
-                BotResponse.Message(
-                    messages.Get(language, MessageKeys.ExpenseListEmpty),
-                    menu.ReplyKeyboard(language)),
-            };
+        // Fetch one extra row inside the service so HasMore is known without a COUNT.
+        var page = await reports.GetHistoryAsync(
+            context.User.Id, range, payload.After, PageSize, cancellationToken);
 
-            return new ConversationTurn(empty)
-            {
-                Completed = true,
-            };
-        }
-
-        var rows = items
+        var rows = page.Items
             .Select(item => new[] { new BotButton(ListLabel(context, item), OpenPrefix + item.Id) })
             .ToList();
 
+        var navigation = new List<BotButton>();
+        if (payload.After is not null)
+        {
+            navigation.Add(new BotButton(
+                messages.Get(language, MessageKeys.HistoryButtonPrevious), PreviousPageCallback));
+        }
+
+        if (page.HasMore)
+        {
+            navigation.Add(new BotButton(
+                messages.Get(language, MessageKeys.HistoryButtonMore), MoreCallback));
+        }
+
+        if (navigation.Count > 0)
+        {
+            rows.Add([.. navigation]);
+        }
+
+        rows.Add(
+        [
+            new BotButton(messages.Get(language, MessageKeys.HistoryRangeThisMonth), RangeThisMonthCallback),
+            new BotButton(messages.Get(language, MessageKeys.HistoryRangeLastMonth), RangeLastMonthCallback),
+        ]);
+        rows.Add(
+        [
+            new BotButton(
+                messages.Get(language, MessageKeys.HistoryRangeLastThreeMonths), RangeLastThreeMonthsCallback),
+            new BotButton(messages.Get(language, MessageKeys.HistoryRangeThisYear), RangeThisYearCallback),
+        ]);
+
         var responses = new List<BotResponse>(notices)
         {
-            BotResponse.Message(
-                messages.Get(language, MessageKeys.ExpenseListHeader, MonthLabel(context, period)),
-                BotKeyboard.Inline([.. rows])),
+            BotResponse.Message(RenderHistory(context, range, page), BotKeyboard.Inline([.. rows])),
         };
 
         return new ConversationTurn(responses)
         {
             NextState = ListState,
-            NextPayload = new ExpensesPayload().Serialize(),
+            NextPayload = payload.WithPage(payload.After, page.NextCursor, payload.Back).Serialize(),
         };
     }
+
+    private Task<ConversationTurn> NextPageAsync(
+        ConversationContext context, ExpensesPayload payload, CancellationToken cancellationToken)
+    {
+        // Step forward: the page just shown becomes the cursor we came from, and the stack grows
+        // only when there was a real cursor (the first page has none).
+        var back = payload.Back.ToList();
+        if (payload.After is { } after)
+        {
+            back.Add(after);
+        }
+
+        var next = payload with
+        {
+            AfterDate = payload.Next?.ExpenseDate,
+            AfterId = payload.Next?.ExpenseId,
+            NextDate = null,
+            NextId = null,
+            Back = back,
+        };
+
+        return BuildListAsync(context, next, [], cancellationToken);
+    }
+
+    private Task<ConversationTurn> PreviousPageAsync(
+        ConversationContext context, ExpensesPayload payload, CancellationToken cancellationToken)
+    {
+        var back = payload.Back.ToList();
+        ExpensePageCursor? after = null;
+        if (back.Count > 0)
+        {
+            after = back[^1];
+            back.RemoveAt(back.Count - 1);
+        }
+
+        var previous = payload with
+        {
+            AfterDate = after?.ExpenseDate,
+            AfterId = after?.ExpenseId,
+            NextDate = null,
+            NextId = null,
+            Back = back,
+        };
+
+        return BuildListAsync(context, previous, [], cancellationToken);
+    }
+
+    private DateRange? RangeFor(ConversationContext context, string data)
+    {
+        var period = CurrentPeriod(context);
+        return data switch
+        {
+            RangeThisMonthCallback => DateRange.ForMonth(period),
+            RangeLastMonthCallback => DateRange.ForMonth(period.Previous),
+            RangeLastThreeMonthsCallback => new DateRange(
+                period.Previous.Previous.FirstDay, period.LastDay),
+            RangeThisYearCallback => new DateRange(
+                new DateOnly(period.Year, 1, 1), new DateOnly(period.Year, 12, 31)),
+            _ => null,
+        };
+    }
+
+    private string RenderHistory(
+        ConversationContext context, DateRange range, ExpenseHistoryPage page)
+    {
+        var language = context.Language;
+        var lines = new List<string>
+        {
+            messages.Get(language, MessageKeys.HistoryHeader, RangeLabel(range)),
+        };
+
+        if (page.Items.Count == 0)
+        {
+            lines.Add(string.Empty);
+            lines.Add(messages.Get(language, MessageKeys.HistoryEmpty));
+            return string.Join("\n", lines);
+        }
+
+        lines.Add(string.Empty);
+        var first = true;
+        foreach (var day in page.Items
+                     .GroupBy(item => item.ExpenseDate)
+                     .OrderByDescending(group => group.Key))
+        {
+            if (!first)
+            {
+                lines.Add(string.Empty);
+            }
+
+            first = false;
+            lines.Add(DateLabel(context, day.Key));
+
+            foreach (var item in day)
+            {
+                var description = string.IsNullOrWhiteSpace(item.Description)
+                    ? messages.Get(language, MessageKeys.ExpenseNoDescription)
+                    : item.Description;
+
+                lines.Add(messages.Get(
+                    language,
+                    MessageKeys.HistoryExpenseLine,
+                    description,
+                    moneyFormatter.Format(item.Amount, context.User.Currency)));
+            }
+
+            lines.Add(messages.Get(
+                language,
+                MessageKeys.HistoryDayTotal,
+                moneyFormatter.Format(day.Sum(item => item.Amount), context.User.Currency)));
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static string RangeLabel(DateRange range) =>
+        $"{range.From.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}"
+        + $" – {range.To.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}";
+
+    private DateRange CurrentRange(ConversationContext context) =>
+        DateRange.ForMonth(CurrentPeriod(context));
 
     private async Task<ConversationTurn> BuildDetailAsync(
         ConversationContext context,
@@ -543,9 +720,6 @@ internal sealed class ExpensesConversation(
     private DateOnly Today(ConversationContext context) => localDate.Today(context.User.TimeZone);
 
     private MonthPeriod CurrentPeriod(ConversationContext context) => MonthPeriod.FromDate(Today(context));
-
-    private string MonthLabel(ConversationContext context, MonthPeriod period) =>
-        $"{messages.Get(context.Language, MessageKeys.Months[period.Month - 1])} {period.Year}";
 
     private string DateLabel(ConversationContext context, DateOnly date) =>
         $"{date.Day} de {messages.Get(context.Language, MessageKeys.Months[date.Month - 1])} de {date.Year}";

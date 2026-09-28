@@ -114,7 +114,7 @@ public sealed class ConversationRouterTests
     public async Task A_menu_tap_with_no_active_flow_reports_that_it_is_not_ready()
     {
         var harness = TelegramHarness.Build();
-        var label = harness.Messages.Get("es", MessageKeys.MenuStatistics);
+        var label = harness.Messages.Get("es", MessageKeys.MenuSettings);
 
         var turn = await harness.Router.RouteTextAsync(ContextFor(harness), label, CancellationToken.None);
 

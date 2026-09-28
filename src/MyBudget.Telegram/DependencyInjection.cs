@@ -55,6 +55,8 @@ public static class DependencyInjection
         services.AddScoped<IConversation, CategoriesConversation>();
         services.AddScoped<IConversation, ExpenseConversation>();
         services.AddScoped<IConversation, ExpensesConversation>();
+        services.AddScoped<IConversation, SummaryConversation>();
+        services.AddScoped<IConversation, StatisticsConversation>();
         services.AddScoped<IGlobalCallback, ExpenseUndoHandler>();
         services.AddScoped<ConversationRouter>();
         services.AddScoped<ITelegramUpdateDispatcher, TelegramUpdateDispatcher>();

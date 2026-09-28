@@ -473,7 +473,7 @@ test proves the ambient culture is ignored.
 | **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests — **done** |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests — **done** |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
-| **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages |
+| **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout |
 | **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Not started without a real need |
 
@@ -629,7 +629,9 @@ composite FKs), user isolation per repository, historical budget immutability, c
 non-deletion behaviour, user erasure, orphan removal, migration guardrails, timestamp
 maintenance, allocation persistence, localization and matching option validation, the category
 matcher corpus including ambiguity and the fuzzy default, the keyword-learning flow with its
-conflict prompt, architecture and repository contract tests. 671 tests, all green.
+conflict prompt, architecture and repository contract tests, the summary, statistics and
+date-range history messages (asserted verbatim), and the period queries against real PostgreSQL
+(grouped sums, user isolation, the range boundary and a full keyset walk). 694 tests, all green.
 
 ## 17. Backup strategy
 

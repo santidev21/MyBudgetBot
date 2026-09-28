@@ -9,6 +9,7 @@ using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
+using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 using MyBudget.Domain.Users;
 using MyBudget.Telegram.Conversations;
@@ -47,6 +48,7 @@ internal sealed class TelegramHarness
         CategoryService = Substitute.For<ICategoryService>();
         BudgetService = Substitute.For<IBudgetService>();
         ExpenseService = Substitute.For<IExpenseService>();
+        ReportService = Substitute.For<IReportService>();
         PendingActions = Substitute.For<IPendingActionStore>();
 
         var currencies = new CurrencyRegistry();
@@ -83,13 +85,17 @@ internal sealed class TelegramHarness
         UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
 
         ExpenseList = new ExpensesConversation(
-            Messages, ExpenseService, CategoryService, moneyParser, formatter, dateParser, localDate, Menu);
+            Messages, ExpenseService, ReportService, CategoryService, moneyParser, formatter, dateParser,
+            localDate, Menu);
+
+        Summary = new SummaryConversation(Messages, ReportService, formatter, localDate);
+        Statistics = new StatisticsConversation(Messages, ReportService, formatter, localDate);
 
         Router = new ConversationRouter(
             Conversations,
             Messages,
             Menu,
-            [Onboarding, Categories, Expenses, ExpenseList],
+            [Onboarding, Categories, Expenses, ExpenseList, Summary, Statistics],
             [UndoHandler],
             compactParser,
             telegramOptions,
@@ -128,6 +134,8 @@ internal sealed class TelegramHarness
 
     public IBudgetService BudgetService { get; }
 
+    public IReportService ReportService { get; }
+
     public CategoriesConversation Categories { get; }
 
     public IExpenseService ExpenseService { get; }
@@ -137,6 +145,10 @@ internal sealed class TelegramHarness
     public ExpenseConversation Expenses { get; }
 
     public ExpensesConversation ExpenseList { get; }
+
+    public SummaryConversation Summary { get; }
+
+    public StatisticsConversation Statistics { get; }
 
     public ExpenseUndoHandler UndoHandler { get; }
 

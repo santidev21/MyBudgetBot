@@ -77,8 +77,6 @@ public static class MessageKeys
     public const string ExpenseNotFound = "Expense.NotFound";
     public const string ExpenseUndone = "Expense.Undone";
     public const string ExpenseDeleted = "Expense.Deleted";
-    public const string ExpenseListHeader = "Expense.ListHeader";
-    public const string ExpenseListEmpty = "Expense.ListEmpty";
     public const string ExpenseDetailHeader = "Expense.DetailHeader";
     public const string ExpenseDeleteConfirm = "Expense.DeleteConfirm";
     public const string ExpenseDeletedConfirm = "Expense.DeletedConfirm";
@@ -150,6 +148,46 @@ public static class MessageKeys
     public const string BudgetCategoryInactive = "Budget.CategoryInactive";
     public const string BudgetCategoryNotFound = "Budget.CategoryNotFound";
     public const string BudgetNoCategories = "Budget.NoCategories";
+
+    public const string SummaryHeader = "Summary.Header";
+    public const string SummaryTotalSpent = "Summary.TotalSpent";
+    public const string SummaryTotalBudget = "Summary.TotalBudget";
+    public const string SummaryLine = "Summary.Line";
+    public const string SummaryLineUnbudgeted = "Summary.LineUnbudgeted";
+    public const string SummaryEmpty = "Summary.Empty";
+    public const string NavigationPrevious = "Navigation.Previous";
+    public const string NavigationCurrent = "Navigation.Current";
+    public const string NavigationNext = "Navigation.Next";
+
+    public const string StatisticsHeader = "Statistics.Header";
+    public const string StatisticsTotal = "Statistics.Total";
+    public const string StatisticsExpenseCount = "Statistics.ExpenseCount";
+    public const string StatisticsAverageDaily = "Statistics.AverageDaily";
+    public const string StatisticsInProgress = "Statistics.InProgress";
+    public const string StatisticsByCategoryHeader = "Statistics.ByCategoryHeader";
+    public const string StatisticsCategoryLine = "Statistics.CategoryLine";
+    public const string StatisticsDailyHeader = "Statistics.DailyHeader";
+    public const string StatisticsDailyLine = "Statistics.DailyLine";
+    public const string StatisticsLargestHeader = "Statistics.LargestHeader";
+    public const string StatisticsLargestLine = "Statistics.LargestLine";
+    public const string StatisticsComparisonHeader = "Statistics.ComparisonHeader";
+    public const string StatisticsComparisonLine = "Statistics.ComparisonLine";
+    public const string StatisticsChangeUp = "Statistics.ChangeUp";
+    public const string StatisticsChangeDown = "Statistics.ChangeDown";
+    public const string StatisticsChangeFlat = "Statistics.ChangeFlat";
+    public const string StatisticsChangeUnknown = "Statistics.ChangeUnknown";
+    public const string StatisticsEmpty = "Statistics.Empty";
+
+    public const string HistoryRangeThisMonth = "History.RangeThisMonth";
+    public const string HistoryRangeLastMonth = "History.RangeLastMonth";
+    public const string HistoryRangeLastThreeMonths = "History.RangeLastThreeMonths";
+    public const string HistoryRangeThisYear = "History.RangeThisYear";
+    public const string HistoryHeader = "History.Header";
+    public const string HistoryEmpty = "History.Empty";
+    public const string HistoryDayTotal = "History.DayTotal";
+    public const string HistoryExpenseLine = "History.ExpenseLine";
+    public const string HistoryButtonMore = "History.ButtonMore";
+    public const string HistoryButtonPrevious = "History.ButtonPrevious";
 
     public const string MonthJanuary = "Month.January";
     public const string MonthFebruary = "Month.February";
@@ -226,8 +264,6 @@ public static class MessageKeys
         ExpenseNotFound,
         ExpenseUndone,
         ExpenseDeleted,
-        ExpenseListHeader,
-        ExpenseListEmpty,
         ExpenseDetailHeader,
         ExpenseDeleteConfirm,
         ExpenseDeletedConfirm,
@@ -295,6 +331,43 @@ public static class MessageKeys
         BudgetCategoryInactive,
         BudgetCategoryNotFound,
         BudgetNoCategories,
+        SummaryHeader,
+        SummaryTotalSpent,
+        SummaryTotalBudget,
+        SummaryLine,
+        SummaryLineUnbudgeted,
+        SummaryEmpty,
+        NavigationPrevious,
+        NavigationCurrent,
+        NavigationNext,
+        StatisticsHeader,
+        StatisticsTotal,
+        StatisticsExpenseCount,
+        StatisticsAverageDaily,
+        StatisticsInProgress,
+        StatisticsByCategoryHeader,
+        StatisticsCategoryLine,
+        StatisticsDailyHeader,
+        StatisticsDailyLine,
+        StatisticsLargestHeader,
+        StatisticsLargestLine,
+        StatisticsComparisonHeader,
+        StatisticsComparisonLine,
+        StatisticsChangeUp,
+        StatisticsChangeDown,
+        StatisticsChangeFlat,
+        StatisticsChangeUnknown,
+        StatisticsEmpty,
+        HistoryRangeThisMonth,
+        HistoryRangeLastMonth,
+        HistoryRangeLastThreeMonths,
+        HistoryRangeThisYear,
+        HistoryHeader,
+        HistoryEmpty,
+        HistoryDayTotal,
+        HistoryExpenseLine,
+        HistoryButtonMore,
+        HistoryButtonPrevious,
         MonthJanuary,
         MonthFebruary,
         MonthMarch,

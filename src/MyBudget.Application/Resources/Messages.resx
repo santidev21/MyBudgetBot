@@ -205,12 +205,6 @@
   <data name="Expense.Deleted" xml:space="preserve">
     <value>🗑️ Gasto eliminado.</value>
   </data>
-  <data name="Expense.ListHeader" xml:space="preserve">
-    <value>Gastos de {0}:</value>
-  </data>
-  <data name="Expense.ListEmpty" xml:space="preserve">
-    <value>No hay gastos registrados este mes.</value>
-  </data>
   <data name="Expense.DetailHeader" xml:space="preserve">
     <value>Gasto:</value>
   </data>
@@ -415,6 +409,120 @@
   </data>
   <data name="Budget.NoCategories" xml:space="preserve">
     <value>Primero crea una categoría activa.</value>
+  </data>
+
+  <data name="Summary.Header" xml:space="preserve">
+    <value>📊 Resumen de {0}</value>
+  </data>
+  <data name="Summary.TotalSpent" xml:space="preserve">
+    <value>Total gastado: {0}</value>
+  </data>
+  <data name="Summary.TotalBudget" xml:space="preserve">
+    <value>Presupuesto: {0} · Uso: {1}</value>
+  </data>
+  <data name="Summary.Line" xml:space="preserve">
+    <value>{0}: {1} de {2} {3} {4}</value>
+  </data>
+  <data name="Summary.LineUnbudgeted" xml:space="preserve">
+    <value>{0}: {1} —</value>
+  </data>
+  <data name="Summary.Empty" xml:space="preserve">
+    <value>No hay gastos ni presupuesto registrados en este mes.</value>
+  </data>
+  <data name="Navigation.Previous" xml:space="preserve">
+    <value>← {0}</value>
+  </data>
+  <data name="Navigation.Current" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="Navigation.Next" xml:space="preserve">
+    <value>{0} →</value>
+  </data>
+
+  <data name="Statistics.Header" xml:space="preserve">
+    <value>📈 Estadísticas de {0}</value>
+  </data>
+  <data name="Statistics.Total" xml:space="preserve">
+    <value>Total: {0}</value>
+  </data>
+  <data name="Statistics.ExpenseCount" xml:space="preserve">
+    <value>Gastos: {0}</value>
+  </data>
+  <data name="Statistics.AverageDaily" xml:space="preserve">
+    <value>Promedio diario: {0}</value>
+  </data>
+  <data name="Statistics.InProgress" xml:space="preserve">
+    <value>⚠️ El mes está en curso: el total todavía puede cambiar.</value>
+  </data>
+  <data name="Statistics.ByCategoryHeader" xml:space="preserve">
+    <value>Por categoría:</value>
+  </data>
+  <data name="Statistics.CategoryLine" xml:space="preserve">
+    <value>{0}: {1} ({2})</value>
+  </data>
+  <data name="Statistics.DailyHeader" xml:space="preserve">
+    <value>Gasto diario:</value>
+  </data>
+  <data name="Statistics.DailyLine" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Statistics.LargestHeader" xml:space="preserve">
+    <value>Gastos más grandes:</value>
+  </data>
+  <data name="Statistics.LargestLine" xml:space="preserve">
+    <value>• {0} · {1} ({2})</value>
+  </data>
+  <data name="Statistics.ComparisonHeader" xml:space="preserve">
+    <value>Comparación:</value>
+  </data>
+  <data name="Statistics.ComparisonLine" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="Statistics.ChangeUp" xml:space="preserve">
+    <value>▲ {0} más que {1}.</value>
+  </data>
+  <data name="Statistics.ChangeDown" xml:space="preserve">
+    <value>▼ {0} menos que {1}.</value>
+  </data>
+  <data name="Statistics.ChangeFlat" xml:space="preserve">
+    <value>Sin cambios frente a {0}.</value>
+  </data>
+  <data name="Statistics.ChangeUnknown" xml:space="preserve">
+    <value>No hubo gastos en {0} para comparar.</value>
+  </data>
+  <data name="Statistics.Empty" xml:space="preserve">
+    <value>No hay gastos registrados en este mes.</value>
+  </data>
+
+  <data name="History.RangeThisMonth" xml:space="preserve">
+    <value>Este mes</value>
+  </data>
+  <data name="History.RangeLastMonth" xml:space="preserve">
+    <value>Mes pasado</value>
+  </data>
+  <data name="History.RangeLastThreeMonths" xml:space="preserve">
+    <value>Últimos 3 meses</value>
+  </data>
+  <data name="History.RangeThisYear" xml:space="preserve">
+    <value>Este año</value>
+  </data>
+  <data name="History.Header" xml:space="preserve">
+    <value>Gastos del {0}</value>
+  </data>
+  <data name="History.Empty" xml:space="preserve">
+    <value>No hay gastos en este rango.</value>
+  </data>
+  <data name="History.DayTotal" xml:space="preserve">
+    <value>Total del día: {0}</value>
+  </data>
+  <data name="History.ExpenseLine" xml:space="preserve">
+    <value>• {0} — {1}</value>
+  </data>
+  <data name="History.ButtonMore" xml:space="preserve">
+    <value>➡️ Ver más</value>
+  </data>
+  <data name="History.ButtonPrevious" xml:space="preserve">
+    <value>⬅️ Anterior</value>
   </data>
 
   <data name="Month.January" xml:space="preserve">

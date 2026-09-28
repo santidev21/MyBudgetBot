@@ -185,6 +185,13 @@ Database and application ports are never published in production.
   travels in the conversation payload and the offer is shown only after the user picks a category,
   so the flow never asks to save a term to a category that is not chosen yet. The conflict prompt
   reuses the alias screen's wording rather than a second copy.
+- **A computed property on a conversation payload must be `[JsonIgnore]`.** `ReportingPayload.Period`
+  returns a `MonthPeriod`, whose `Previous`/`Next` recurse; without the attribute `System.Text.Json`
+  walks into it and the payload write fails. Computed payload properties are for reading, never
+  serialized.
+- **Report sums are derived in SQL, never stored.** `IExpenseReadRepository` groups and sums in
+  PostgreSQL; `IReportService` only merges the totals with category labels. The keyset page query
+  is raw SQL because the tiebreaker is a `uuid`, which C# cannot compare with an operator.
 
 ## Status and handoff
 
@@ -199,16 +206,18 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 4  Categories and monthly budgets          <-- done
 [x] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- done
 [x] Phase 6  Category matching and keyword learning   <-- done
-[ ] Phase 7  Summary and statistics                   <-- next
-[ ] Phase 8  Hardening: verified backups, runbook, rate limiting
+[x] Phase 7  Summary and statistics                   <-- done
+[ ] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- next
 [ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
 ```
 
 **Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
 account (in production over the webhook, in development over polling) it manages categories and
 monthly budgets, records expenses both guided and compact, suggests the category from the
-description, lets the user teach it a keyword, edits and deletes expenses, and undoes a
-registration. 671 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
+description, lets the user teach it a keyword, edits and deletes expenses, undoes a
+registration, and reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and the
+month's statistics (`📈 Estadísticas`). 694 tests green, `dotnet build` with zero warnings,
+`dotnet format` clean.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -277,7 +286,68 @@ The deterministic matcher of `docs/TECHNICAL-DESIGN.md` §9, wired into the expe
 Exit criteria met: the matcher corpus including ambiguity, fuzzy off by default, and the
 learn-keyword flow with its conflict prompt, plus conversation tests for each path.
 
-### Prompt for the next session — Phase 7 (summary and statistics)
+### Phase 7 delivered — summary and statistics
+
+All exercised through Telegram conversations:
+
+- `📊 Resumen`: the month's total, the historical allocation of that month, and one line per
+  category with a ten-cell text bar and its usage. Month navigation `[← agosto] [septiembre
+  2026] [octubre →]`, bounded at the calendar limits the domain allows. A category with
+  spending but no allocation shows `—`, overspending shows above 100 %, and a month with no
+  budget never divides by zero.
+- `📋 Gastos`: the date-range history. Presets for this month, last month, the last three
+  months and this year; day grouping with a per-day total; and keyset pagination on
+  `(expense_date DESC, id DESC)` with `[⬅️ Anterior] [➡️ Ver más]` over a cursor stack carried
+  in the conversation payload. The detail, edit and delete screens hang off each listed row.
+- `📈 Estadísticas`: total, expense count and average daily (over the days elapsed, so a month
+  in progress is not understated), share per category, daily spending, the five biggest
+  expenses, and a comparison with the previous month that states when the period is still in
+  progress.
+
+Application: `IReportService` composes the read model; `IExpenseReadRepository` holds the SQL
+aggregations (`SUM`/`COUNT` grouped by category and day) and the keyset page. The page query is
+raw SQL because the tiebreaker is a `uuid`, which C# cannot compare with an operator, and
+PostgreSQL's byte ordering is what the cursor relies on. `DateRange` is an inclusive calendar
+range resolved in the user's local zone.
+
+Exit criteria met: snapshot tests assert the rendered summary, statistics and history messages
+verbatim, and the period queries are covered against real PostgreSQL in
+`ExpenseReportQueryTests` (grouped sums, user isolation, the range boundary, and a full keyset
+walk without gaps or duplicates).
+
+### Prompt for the next session — Phase 8 (hardening)
+
+Paste this to start the next session:
+
+> Trabajamos en `/home/santidev21/Dev/MyBudget-bot`, un bot de presupuesto personal para
+> Telegram (.NET 8 + PostgreSQL, Clean Architecture, modular monolith).
+>
+> Antes de tocar nada:
+> 1. Lee `AGENTS.md` completo y `docs/TECHNICAL-DESIGN.md` (§14 Seguridad, §15 Despliegue,
+>    §17 Backups, §12 Phase 8, §16 testing).
+> 2. Mira `git log --oneline`.
+> 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
+>
+> Contexto: fases 0–7 completas, 694 tests verdes, build sin warnings, `dotnet format` limpio.
+> El bot registra gastos, aprende keywords, y ya tiene resumen mensual, historial por rangos con
+> paginación keyset y estadísticas. `.env` local con bot de DEV en polling, base en
+> `127.0.0.1:5435`; el VPS con webhook está desplegado.
+>
+> Haz la **Phase 8: hardening**. Alcance: backups con verificación automática (restore a una
+> base descartable y alerta al admin si falla), runbook de restore, límites de tasa de entrada
+> por usuario y manejo de 429 en la salida, y automatización de despliegue desde un checkout
+> limpio. Criterio de salida: simulacro de restore realizado y deploy reproducible.
+>
+> Reglas que no se rompen: dinero `long` exacto; `ExpenseDate` es `DateOnly` en hora local;
+> ownership con `userId` primero y FKs compuestas; la historia no se borra (desactivar); nada de
+> IA para categorizar; texto de usuario sólo en `Messages.resx` + `MessageKeys`; los casos de
+> uso en Application; las conversaciones de Telegram sólo recogen input y renderizan.
+>
+> Trabaja en pasos cortos: implementa una cosa, corre
+> `dotnet build MyBudget.sln && dotnet test MyBudget.sln && dotnet format MyBudget.sln --verify-no-changes`,
+> muéstrame el resultado y sigue. No acumules turnos larguísimos.
+
+### Earlier handoff (Phase 7, kept for reference)
 
 Paste this to start the next session:
 

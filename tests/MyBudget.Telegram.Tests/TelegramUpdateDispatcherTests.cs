@@ -142,7 +142,7 @@ public sealed class TelegramUpdateDispatcherTests
     public async Task A_menu_tap_is_acknowledged_as_not_ready_yet()
     {
         var harness = TelegramHarness.Build();
-        var label = harness.Messages.Get("es", MyBudget.Application.Localization.MessageKeys.MenuSummary);
+        var label = harness.Messages.Get("es", MyBudget.Application.Localization.MessageKeys.MenuSettings);
 
         await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(1, 999, label));
 
