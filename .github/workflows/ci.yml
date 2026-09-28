@@ -134,6 +134,12 @@ jobs:
           image-ref: mybudget-app:test
           format: table
           severity: HIGH,CRITICAL
+          # Only the application's own dependencies are gated. The OS packages come from
+          # the Microsoft base image and are updated by rebuilding, not by us; gating on
+          # them turns the job red for vulnerabilities we cannot fix. Unfixed findings are
+          # ignored for the same reason: they have no patched version to upgrade to yet.
+          vuln-type: library
+          ignore-unfixed: true
           exit-code: 1
 
   compose-validate:
