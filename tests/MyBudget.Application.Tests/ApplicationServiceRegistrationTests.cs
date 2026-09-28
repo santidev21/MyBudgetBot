@@ -8,6 +8,7 @@ using MyBudget.Application.Categories;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
 using NSubstitute;
@@ -64,6 +65,7 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<IMoneyFormatter>().Should().BeOfType<MoneyFormatter>();
         scope.ServiceProvider.GetRequiredService<IMoneyParser>().Should().BeOfType<MoneyParser>();
         scope.ServiceProvider.GetRequiredService<ICompactExpenseParser>().Should().BeOfType<CompactExpenseParser>();
+        scope.ServiceProvider.GetRequiredService<ICategoryMatcher>().Should().BeOfType<CategoryMatcher>();
         scope.ServiceProvider.GetRequiredService<IDateParser>().Should().BeOfType<DateParser>();
         scope.ServiceProvider.GetRequiredService<IUserService>().Should().BeOfType<UserService>();
         scope.ServiceProvider.GetRequiredService<ICategoryService>().Should().BeOfType<CategoryService>();

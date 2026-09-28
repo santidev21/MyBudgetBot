@@ -7,6 +7,7 @@ using MyBudget.Application.Configuration;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
 using MyBudget.Application.Users;
 
@@ -35,12 +36,20 @@ public static class DependencyInjection
 
         services.AddSingleton<IValidateOptions<LocalizationOptions>, LocalizationOptionsValidator>();
 
+        services
+            .AddOptions<CategoryMatchingOptions>()
+            .Bind(configuration.GetSection(CategoryMatchingOptions.SectionName))
+            .ValidateOnStart();
+
+        services.AddSingleton<IValidateOptions<CategoryMatchingOptions>, CategoryMatchingOptionsValidator>();
+
         services.AddSingleton<IUserMessages, ResourceUserMessages>();
         services.AddSingleton<ICurrencyRegistry>(_ => new CurrencyRegistry());
         services.AddSingleton<IMoneyFormatter, MoneyFormatter>();
         services.AddSingleton<IMoneyParser, MoneyParser>();
         services.AddSingleton<ICompactExpenseParser, CompactExpenseParser>();
         services.AddSingleton<IDateParser, DateParser>();
+        services.AddSingleton<ICategoryMatcher, CategoryMatcher>();
         services.AddScoped<IUserLocalDate, UserLocalDate>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICategoryService, CategoryService>();
