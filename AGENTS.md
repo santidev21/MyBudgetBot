@@ -152,15 +152,58 @@ Database and application ports are never published in production.
   builds the real host catches it: the default smoke test runs with Telegram disabled, so
   `ApiTelegramWiringTests` exists specifically to register the polling path.
 
-## Status
+## Status and handoff
 
-Phase 0–3 complete: domain, schema, persistence, Docker, CI, money and date parsing, the
-message catalog, and the full Telegram pipeline (webhook with dual secret validation,
-idempotent inbox, allowlist, per-user advisory lock, database-backed conversation state,
-onboarding, commands, menu). 502 tests, all green. Money code is at 97,5 % line coverage.
+**Read this file first, then `docs/TECHNICAL-DESIGN.md`.** A fresh session knows nothing about
+this project; everything needed to continue is in the repository, not in anyone's memory.
+
+```
+[x] Phase 0  Foundation: solution, build settings, Docker, CI, logging, health
+[x] Phase 1  Domain + persistence: entities, schema, constraints, repositories
+[x] Phase 2  Money, dates, i18n: parser, formatter, compact input, date parser, catalog
+[x] Phase 3  Telegram plumbing: webhook, inbox, allowlist, lock, conversations, onboarding
+[ ] Phase 4  Categories and monthly budgets          <-- next
+[ ] Phase 5  Expenses: guided and compact entry, edit, delete, history
+[ ] Phase 6  Category matching and keyword learning
+[ ] Phase 7  Summary and statistics
+[ ] Phase 8  Hardening: verified backups, runbook, rate limiting
+[ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
+```
+
+**Verified working:** the bot answers `/start` and asks for a time zone, from a real Telegram
+account, in polling mode. 502 tests green, `dotnet build` with zero warnings, `dotnet format`
+clean.
+
+### Phase 4 scope — categories and monthly budgets
+
+Deliverables, all of them exercised through Telegram conversations:
+
+- Category management: create, rename, change icon, activate and deactivate, and list.
+  Deletion is not offered; reactivation is offered instead when a name is reused.
+- Alias management: add and remove keywords per category, with the conflict prompt when a
+  term already belongs to another category.
+- Monthly budget: set the allocation for a category in a month, and list the month.
+- Explicitly copy the previous month's budget. Never automatic.
+- Budgets are editable for the current and future months only. Past months are immutable in
+  the product, and the interface must say so rather than silently refusing.
+
+Use cases live in `MyBudget.Application`; the conversations in `MyBudget.Telegram` only
+collect input and render. Every new user-visible string goes in
+`Resources/Messages.resx` plus a constant in `MessageKeys`, or the catalog test fails —
+which is the intended behaviour.
+
+Exit criteria: integration tests for category CRUD, alias conflicts, allocation history and
+the copy-previous-month behaviour; conversation tests for each flow; and the bot answering the
+`🏷️ Categorías` menu item instead of "not ready yet".
+
+### Commands to verify any change
+
+```bash
+dotnet build MyBudget.sln                 # zero warnings
+dotnet test MyBudget.sln                  # everything
+dotnet format MyBudget.sln --verify-no-changes
+```
 
 Running it locally: fill `.env` (see `scripts/init-telegram-env.sh`), start the database with
 the local overlay, and `dotnet run --project src/MyBudget.Api`. The app reads `.env` in
-development, so no variable has to be repeated on the command line. The bot answers `/start`.
-
-Next: Phase 4 (category and monthly budget management).
+development, so no variable is repeated on the command line.
