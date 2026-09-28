@@ -37,17 +37,19 @@ internal sealed class ConversationRouter(
             return await RunCommandAsync(context, command, cancellationToken);
         }
 
+        // A tap on the persistent menu outranks an in-progress flow. Without this, typing a
+        // menu label mid-flow would be swallowed as input by the active conversation (a
+        // "📊 Resumen" tap becoming a category name, for example).
+        if (menu.MatchAction(context.Language, text) is { } action)
+        {
+            return await StartMenuActionAsync(context, action, cancellationToken);
+        }
+
         if (ActiveConversation(context) is { } active)
         {
             var turn = await active.HandleTextAsync(context, new IncomingText(text), cancellationToken);
             await PersistAsync(context, active.Name, turn, cancellationToken);
             return turn;
-        }
-
-        if (menu.MatchAction(context.Language, text) is not null)
-        {
-            return Finished(
-                ConversationTurn.Say(messages.Get(context.Language, MessageKeys.FeatureNotReady)));
         }
 
         return Finished(HelpTurn(context));
@@ -96,6 +98,30 @@ internal sealed class ConversationRouter(
         }
 
         return Finished(HelpTurn(context));
+    }
+
+    private async Task<ConversationTurn> StartMenuActionAsync(
+        ConversationContext context, string action, CancellationToken cancellationToken)
+    {
+        var conversationName = action switch
+        {
+            MessageKeys.MenuCategories => CategoriesConversation.ConversationName,
+            _ => null,
+        };
+
+        // Tapping a menu item abandons whatever was in progress: the menu is the user's way out.
+        await store.ClearAsync(context.User.Id, cancellationToken);
+
+        if (conversationName is null || Find(conversationName) is not { } conversation)
+        {
+            return Finished(
+                ConversationTurn.Say(messages.Get(context.Language, MessageKeys.FeatureNotReady)));
+        }
+
+        var fresh = context with { Conversation = null };
+        var started = await conversation.StartAsync(fresh, cancellationToken);
+        await PersistAsync(fresh, conversation.Name, started, cancellationToken);
+        return started;
     }
 
     private IConversation? ActiveConversation(ConversationContext context) =>

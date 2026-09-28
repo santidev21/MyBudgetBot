@@ -52,6 +52,7 @@ public static class DependencyInjection
 
         services.AddSingleton<MainMenu>();
         services.AddScoped<IConversation, StartConversation>();
+        services.AddScoped<IConversation, CategoriesConversation>();
         services.AddScoped<ConversationRouter>();
         services.AddScoped<ITelegramUpdateDispatcher, TelegramUpdateDispatcher>();
 

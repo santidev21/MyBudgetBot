@@ -1,7 +1,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MyBudget.Application.Budgets;
+using MyBudget.Application.Categories;
 using MyBudget.Application.Configuration;
+using MyBudget.Application.Dates;
 using MyBudget.Application.Localization;
+using MyBudget.Application.Money;
 using MyBudget.Application.Users;
 using MyBudget.Domain.Users;
 using MyBudget.Telegram.Conversations;
@@ -36,11 +40,27 @@ internal sealed class TelegramHarness
 
         Onboarding = new StartConversation(Messages, Menu, UnitOfWork);
 
+        CategoryService = Substitute.For<ICategoryService>();
+        BudgetService = Substitute.For<IBudgetService>();
+
+        var currencies = new CurrencyRegistry();
+        var formatter = new MoneyFormatter(currencies);
+        var moneyParser = new MoneyParser(currencies, formatter);
+
+        Categories = new CategoriesConversation(
+            Messages,
+            CategoryService,
+            BudgetService,
+            moneyParser,
+            formatter,
+            new UserLocalDate(clock),
+            Menu);
+
         Router = new ConversationRouter(
             Conversations,
             Messages,
             Menu,
-            [Onboarding],
+            [Onboarding, Categories],
             Microsoft.Extensions.Options.Options.Create(options),
             clock);
 
@@ -71,6 +91,12 @@ internal sealed class TelegramHarness
 
     public StartConversation Onboarding { get; }
 
+    public ICategoryService CategoryService { get; }
+
+    public IBudgetService BudgetService { get; }
+
+    public CategoriesConversation Categories { get; }
+
     public ConversationRouter Router { get; }
 
     public TelegramUpdateDispatcher Dispatcher { get; }
@@ -100,19 +126,5 @@ internal sealed class TelegramHarness
         var user = new User(telegramUserId, "tester", "Test User");
 
         return new TelegramHarness(user, settings, clock ?? FixedClock.At(TestClock.Now));
-    }
-
-    /// <summary>Registers a second conversation so routing can be exercised with more than one flow.</summary>
-    public TelegramHarness WithConversation(IConversation conversation)
-    {
-        var router = new ConversationRouter(
-            Conversations,
-            Messages,
-            Menu,
-            [Onboarding, conversation],
-            Microsoft.Extensions.Options.Options.Create(Options),
-            Clock);
-
-        return new TelegramHarness(User, Options, Clock);
     }
 }
