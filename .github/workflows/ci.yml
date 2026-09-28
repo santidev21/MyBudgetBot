@@ -98,8 +98,10 @@ jobs:
 
       - name: Scan for committed credentials
         run: |
+          # Tests hold deliberate placeholders such as the harness webhook secret; only
+          # production and configuration sources are scanned for real credentials.
           if grep -rniE --include='*.cs' --include='*.json' --include='*.yml' --include='*.yaml' \
-               --exclude-dir=bin --exclude-dir=obj --exclude-dir=.git \
+               --exclude-dir=bin --exclude-dir=obj --exclude-dir=.git --exclude-dir=tests \
                '(bot_token|botToken|password|secret)\s*[:=]\s*"[A-Za-z0-9_.:/+-]{16,}"' . ; then
             echo "Potential credential committed. Review the matches above."
             exit 1
