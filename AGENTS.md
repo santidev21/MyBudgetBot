@@ -238,6 +238,14 @@ Database and application ports are never published in production.
   text screen and a replayed callback cannot act on a stale month.
 - **A chart is never the only place a number appears.** The text screens carry every exact
   value; the image is a comparison. An empty month therefore offers no chart buttons at all.
+- **EF cannot order an insert by a composite foreign key it does not model.** Adding a
+  `budget_alerts` row in the same `SaveChanges` as its category can insert the alert first and
+  violate `fk_budget_alerts_category_same_user`. Production is safe because
+  `BudgetAlertStore.RecordAsync` inserts with raw SQL after the category exists; a test that
+  seeds one explicitly saves the category first.
+- **A budget alert is recorded whether or not the notification is delivered.** The marker is
+  what stops the bot repeating itself; the message is best-effort, exactly like the recurring
+  notification. The threshold marker is operational state, never a financial fact.
 
 ## Status and handoff
 
@@ -254,7 +262,7 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 6  Category matching and keyword learning   <-- done
 [x] Phase 7  Summary and statistics                   <-- done
 [x] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- done
-[x] Phase 9  Recurring expenses and spending charts (the chosen optional pieces)   <-- done
+[x] Phase 9  Recurring expenses, spending charts and budget alerts   <-- done
 [ ] Phase 9+ Optional: CSV export/import, scheduled summaries   <-- only with a real need
 ```
 
@@ -263,10 +271,11 @@ account (in production over the webhook, in development over polling) it manages
 monthly budgets, records expenses both guided and compact, suggests the category from the
 description, lets the user teach it a keyword, edits and deletes expenses, undoes a
 registration, manages monthly recurring rules that the scheduler applies on their due date,
-draws the month's spending as a chart, and reports the month (`📊 Resumen`), the range history
-(`📋 Gastos`) and the month's statistics (`📈 Estadísticas`). The nightly backup is verified by
-a real restore drill and the deploy refuses to run without a verified dump and a clean
-checkout. 762 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
+warns when a category crosses 80 % and 100 % of its monthly allocation, draws the month's
+spending as a chart, and reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and
+the month's statistics (`📈 Estadísticas`). The nightly backup is verified by a real restore
+drill and the deploy refuses to run without a verified dump and a clean checkout. 778 tests
+green, `dotnet build` with zero warnings, `dotnet format` clean.
 
 ### Phase 8 delivered — hardening
 
@@ -332,6 +341,26 @@ weekly/yearly frequencies would each need their own anchor rule.
 
 The remaining optional pieces (CSV export/import, scheduled summaries) still start only with a
 real need.
+
+### Budget alerts delivered — proactive warnings
+
+- A category crossing 80 % of its monthly allocation warns once; crossing 100 % warns again.
+  Both are recorded so neither fires twice for the same category and month.
+- `BudgetAlertService` is pure policy: it reads the month's derived usage from
+  `IReportService`, keeps only the thresholds not announced yet, records them, and returns the
+  highest one. A single expense that jumps straight past the limit reports 100, not two
+  messages. A category with no allocation has no threshold and is ignored.
+- Evaluation runs inside the use cases that write an expense, so every path gets it for free:
+  guided and compact entry, edit, and the recurring pass. The result carries the alerts and the
+  presentation renders them with `BudgetAlertMessages`, shared by the expense flow and the
+  recurring notifier.
+- `budget_alerts` is operational state, not financial: `(user_id, category_id, year, month,
+  threshold)` is unique and writes use `ON CONFLICT DO NOTHING`, so the expense path and the
+  recurring pass can race without failing each other. The composite category foreign key keeps
+  one user's alert from pointing at another user's category.
+- Only the current month is evaluated: an expense dated earlier cannot change the budget the
+  user is living in today. Changing an allocation does not re-evaluate either; the trigger is a
+  spending event.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -444,12 +473,12 @@ build one:
 > 2. Mira `git log --oneline`.
 > 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
 >
-> Contexto: fases 0–9 completas, 762 tests verdes, build sin warnings, `dotnet format` limpio.
+> Contexto: fases 0–9 completas, 778 tests verdes, build sin warnings, `dotnet format` limpio.
 > El bot registra gastos, aprende keywords, tiene resumen/estadísticas/historial, gestiona
-> reglas recurrentes que el scheduler aplica en su fecha, dibuja gráficos de gasto sin
-> dependencias nativas, backups nocturnos verificados con restore real y deploy reproducible.
-> `.env` local con bot de DEV en polling, base en `127.0.0.1:5435`; el VPS con webhook está
-> desplegado.
+> reglas recurrentes que el scheduler aplica en su fecha, avisa al cruzar el presupuesto,
+> dibuja gráficos de gasto sin dependencias nativas, backups nocturnos verificados con restore
+> real y deploy reproducible. `.env` local con bot de DEV en polling, base en
+> `127.0.0.1:5435`; el VPS con webhook está desplegado.
 >
 > Haz **una** de las piezas opcionales que quedan: exportación/importación CSV o resúmenes
 > programados. Elige la que tenga una necesidad real, no todas. Alcance de cada opción en

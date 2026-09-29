@@ -30,6 +30,8 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
 
     internal DbSet<PendingActionRecord> PendingActions => Set<PendingActionRecord>();
 
+    internal DbSet<BudgetAlertRecord> BudgetAlerts => Set<BudgetAlertRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

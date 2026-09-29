@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
 using MyBudget.Application.Recurring;
+using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Presentation;
 
 namespace MyBudget.Telegram.Recurring;
@@ -39,6 +40,12 @@ internal sealed class RecurringExpenseNotifier(
                     DateLabel(language, generated.Date),
                     label,
                     moneyFormatter.Format(generated.Amount, result.User.Currency)));
+            }
+
+            foreach (var alert in result.Alerts)
+            {
+                lines.Add(BudgetAlertMessages.Format(
+                    messages, moneyFormatter, language, result.User.Currency, alert));
             }
 
             try

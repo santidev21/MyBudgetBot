@@ -6,7 +6,6 @@ using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Infrastructure.Persistence.Interceptors;
 using MyBudget.Infrastructure.Persistence.Repositories;
-
 namespace MyBudget.Infrastructure;
 
 public static class DependencyInjection
@@ -47,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<IRecurringExpenseRepository, RecurringExpenseRepository>();
         services.AddScoped<IExpenseReadRepository, ExpenseReadRepository>();
         services.AddScoped<IUpdateInbox, UpdateInbox>();
+        services.AddScoped<IBudgetAlertStore, BudgetAlertStore>();
         services.AddScoped<IConversationStore, ConversationStore>();
         services.AddScoped<IPendingActionStore, PendingActionStore>();
         services.AddScoped<IUserWorkLock, UserWorkLock>();

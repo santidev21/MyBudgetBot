@@ -46,6 +46,7 @@ public sealed class ApplicationServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IBudgetRepository>());
         services.AddScoped(_ => Substitute.For<IExpenseRepository>());
         services.AddScoped(_ => Substitute.For<IRecurringExpenseRepository>());
+        services.AddScoped(_ => Substitute.For<IBudgetAlertStore>());
         services.AddScoped(_ => Substitute.For<IExpenseReadRepository>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddSingleton(TimeProvider.System);
@@ -74,6 +75,7 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<IUserService>().Should().BeOfType<UserService>();
         scope.ServiceProvider.GetRequiredService<ICategoryService>().Should().BeOfType<CategoryService>();
         scope.ServiceProvider.GetRequiredService<IBudgetService>().Should().BeOfType<BudgetService>();
+        scope.ServiceProvider.GetRequiredService<IBudgetAlertService>().Should().BeOfType<BudgetAlertService>();
         scope.ServiceProvider.GetRequiredService<IExpenseService>().Should().BeOfType<ExpenseService>();
         scope.ServiceProvider.GetRequiredService<IRecurringExpenseService>().Should().BeOfType<RecurringExpenseService>();
         scope.ServiceProvider.GetRequiredService<IReportService>().Should().BeOfType<ReportService>();

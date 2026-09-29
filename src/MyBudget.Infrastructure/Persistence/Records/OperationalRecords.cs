@@ -77,3 +77,28 @@ internal sealed class PendingActionRecord
 
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+/// <summary>
+/// One budget threshold already announced for a category in a month.
+/// <para>
+/// Operational, not financial: it only stops the bot from repeating itself. The unique key is
+/// <c>(user_id, category_id, year, month, threshold)</c>, so a race can at worst be ignored.
+/// </para>
+/// </summary>
+internal sealed class BudgetAlertRecord
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    public Guid CategoryId { get; set; }
+
+    public short Year { get; set; }
+
+    public short Month { get; set; }
+
+    /// <summary>The percentage threshold that was crossed: 80 or 100.</summary>
+    public short Threshold { get; set; }
+
+    public DateTimeOffset NotifiedAt { get; set; }
+}

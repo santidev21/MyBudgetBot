@@ -416,6 +416,12 @@
   <data name="Budget.NoCategories" xml:space="preserve">
     <value>Primero crea una categoría activa.</value>
   </data>
+  <data name="Budget.AlertNearLimit" xml:space="preserve">
+    <value>⚠️ {1}: vas en {0} de lo asignado ({2} de {3}).</value>
+  </data>
+  <data name="Budget.AlertExceeded" xml:space="preserve">
+    <value>🚨 {1}: agotaste el presupuesto del mes ({2} de {3}, {0}).</value>
+  </data>
 
   <data name="Summary.Header" xml:space="preserve">
     <value>📊 Resumen de {0}</value>

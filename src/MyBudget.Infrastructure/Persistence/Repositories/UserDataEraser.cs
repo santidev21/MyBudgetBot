@@ -25,6 +25,10 @@ internal sealed class UserDataEraser(MyBudgetDbContext dbContext) : IUserDataEra
             .Where(rule => rule.UserId == userId)
             .ExecuteDeleteAsync(cancellationToken);
 
+        await dbContext.BudgetAlerts
+            .Where(alert => alert.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
+
         await dbContext.CategoryAliases
             .Where(alias => alias.UserId == userId)
             .ExecuteDeleteAsync(cancellationToken);

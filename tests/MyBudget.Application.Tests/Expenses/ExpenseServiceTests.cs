@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Expenses;
 using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
@@ -21,10 +22,40 @@ public sealed class ExpenseServiceTests
 
     private readonly IExpenseRepository _expenses = Substitute.For<IExpenseRepository>();
     private readonly ICategoryRepository _categories = Substitute.For<ICategoryRepository>();
+    private readonly IBudgetAlertService _budgetAlerts = Substitute.For<IBudgetAlertService>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly ExpenseService _service;
 
-    public ExpenseServiceTests() => _service = new ExpenseService(_expenses, _categories, _unitOfWork);
+    public ExpenseServiceTests()
+    {
+        _budgetAlerts
+            .EvaluateAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetAlert>>([]));
+
+        _service = new ExpenseService(_expenses, _categories, _budgetAlerts, _unitOfWork);
+    }
+
+    [Fact]
+    public async Task Creating_an_expense_surfaces_the_budget_alert_it_crossed()
+    {
+        var category = new BudgetCategory(UserId, "Mercado", "🛒");
+        _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
+
+        var alert = new BudgetAlert(category.Id, "Mercado", "🛒", 100_000, 85_000, 80, 85m);
+        _budgetAlerts
+            .EvaluateAsync(UserId, September, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetAlert>>([alert]));
+
+        var result = await _service.CreateAsync(
+            UserId, category.Id, 85_000, "Mercado", new DateOnly(2026, 9, 27), Today);
+
+        result.Saved.Should().BeTrue();
+        result.Alerts.Should().ContainSingle().Which.Threshold.Should().Be(80);
+
+        // The evaluation is for the user's current month, resolved from the passed-in today.
+        await _budgetAlerts.Received(1)
+            .EvaluateAsync(UserId, September, Arg.Any<CancellationToken>());
+    }
 
     [Fact]
     public async Task Creating_an_expense_persists_it()

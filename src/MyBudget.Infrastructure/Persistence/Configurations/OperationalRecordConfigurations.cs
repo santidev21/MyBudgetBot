@@ -97,3 +97,47 @@ internal sealed class PendingActionRecordConfiguration : IEntityTypeConfiguratio
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class BudgetAlertRecordConfiguration : IEntityTypeConfiguration<BudgetAlertRecord>
+{
+    public void Configure(EntityTypeBuilder<BudgetAlertRecord> builder)
+    {
+        builder.ToTable("budget_alerts", table =>
+        {
+            table.HasCheckConstraint("ck_budget_alerts_month", "month BETWEEN 1 AND 12");
+            table.HasCheckConstraint("ck_budget_alerts_year", "year BETWEEN 2000 AND 2100");
+            table.HasCheckConstraint("ck_budget_alerts_threshold", "threshold IN (80, 100)");
+        });
+
+        builder.HasKey(record => record.Id);
+        builder.Property(record => record.Id).HasColumnName("id").ValueGeneratedNever();
+        builder.Property(record => record.UserId).HasColumnName("user_id").IsRequired();
+        builder.Property(record => record.CategoryId).HasColumnName("category_id").IsRequired();
+        builder.Property(record => record.Year).HasColumnName("year").HasColumnType("smallint").IsRequired();
+        builder.Property(record => record.Month).HasColumnName("month").HasColumnType("smallint").IsRequired();
+        builder.Property(record => record.Threshold).HasColumnName("threshold").HasColumnType("smallint").IsRequired();
+        builder.Property(record => record.NotifiedAt).HasColumnName("notified_at").HasColumnType("timestamptz").IsRequired();
+
+        builder
+            .HasIndex(record => new
+            {
+                record.UserId,
+                record.CategoryId,
+                record.Year,
+                record.Month,
+                record.Threshold,
+            })
+            .IsUnique()
+            .HasDatabaseName("uq_budget_alerts_user_category_period_threshold");
+
+        builder
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(record => record.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // The same-user guarantee for the category reference is a composite foreign key
+        // created by the BudgetAlerts migration:
+        //   (category_id, user_id) -> categories (id, user_id)
+    }
+}

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using MyBudget.Application.Abstractions.Telegram;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Categories;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
@@ -174,6 +175,42 @@ public sealed class ExpenseConversationTests
         turn.Responses.Last().Keyboard!.Rows
             .SelectMany(row => row)
             .Should().Contain(button => button.CallbackData == $"v1|undo|{expense.Id}");
+    }
+
+    [Fact]
+    public async Task Registering_an_expense_that_crosses_a_budget_appends_the_alert()
+    {
+        var harness = TelegramHarness.Build();
+        var categoryId = Guid.NewGuid();
+        var draft = new ExpensePayload
+        {
+            Amount = 85_000,
+            Description = "Mercado",
+            CategoryId = categoryId,
+            CategoryName = "Mercado",
+            CategoryIcon = "🛒",
+            Date = Today,
+        };
+        var expense = new Expense(harness.User.Id, categoryId, 85_000, "Mercado", Today, Today);
+        var alert = new BudgetAlert(categoryId, "Mercado", "🛒", 100_000, 85_000, 80, 85m);
+        harness.PendingActions
+            .ConsumeAsync(harness.User.Id, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<PendingAction?>(
+                new PendingAction(Guid.NewGuid(), harness.User.Id, "expense", draft.Serialize(), TestClock.Now.AddMinutes(30))));
+        harness.ExpenseService
+            .CreateAsync(
+                Arg.Any<Guid>(), categoryId, 85_000, "Mercado", Arg.Any<DateOnly>(), Arg.Any<DateOnly>(),
+                Arg.Any<CategorizationSource>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ExpenseChangeResult.Ok(expense, [alert])));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "confirm", draft),
+            new IncomingCallback("cb", $"v1|expense|{Guid.NewGuid()}"),
+            CancellationToken.None);
+
+        turn.Responses[0].Text.Should().Be(harness.Messages.Get("es", MessageKeys.ExpenseRegistered));
+        turn.Responses.Should().Contain(response =>
+            response.Text.Contains("Mercado") && response.Text.Contains("85 %"));
     }
 
     [Fact]

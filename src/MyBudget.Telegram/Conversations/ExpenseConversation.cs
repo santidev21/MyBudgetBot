@@ -438,10 +438,16 @@ internal sealed class ExpenseConversation(
                 ExpenseUndoHandler.Prefix + result.Expense.Id),
         });
 
-        return new ConversationTurn(
-        [
+        var responses = new List<BotResponse>
+        {
             BotResponse.Message(messages.Get(context.Language, MessageKeys.ExpenseRegistered), undo),
-        ])
+        };
+
+        // A registration that pushes a category past its budget says so in the same turn.
+        responses.AddRange(BudgetAlertMessages.Render(
+            messages, moneyFormatter, context.Language, context.User.Currency, result.Alerts));
+
+        return new ConversationTurn(responses)
         {
             Completed = true,
         };

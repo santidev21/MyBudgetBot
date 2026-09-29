@@ -1,4 +1,5 @@
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Budgets;
 using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
 using MyBudget.Domain.Expenses;
@@ -25,9 +26,17 @@ public enum ExpenseChangeStatus
 
 public sealed record ExpenseChangeResult(ExpenseChangeStatus Status, Expense? Expense = null)
 {
+    /// <summary>
+    /// Budget thresholds this write pushed a category past, highest first-run only. Empty for a
+    /// failed write and for a delete, which can only lower usage.
+    /// </summary>
+    public IReadOnlyList<BudgetAlert> Alerts { get; init; } = [];
+
     public bool Saved => Status == ExpenseChangeStatus.Saved;
 
-    public static ExpenseChangeResult Ok(Expense expense) => new(ExpenseChangeStatus.Saved, expense);
+    public static ExpenseChangeResult Ok(
+        Expense expense, IReadOnlyList<BudgetAlert>? alerts = null) =>
+        new(ExpenseChangeStatus.Saved, expense) { Alerts = alerts ?? [] };
 
     public static ExpenseChangeResult NotFound() => new(ExpenseChangeStatus.NotFound);
 
@@ -101,6 +110,7 @@ public interface IExpenseService
 public sealed class ExpenseService(
     IExpenseRepository expenses,
     ICategoryRepository categories,
+    IBudgetAlertService budgetAlerts,
     IUnitOfWork unitOfWork) : IExpenseService
 {
     public async Task<ExpenseChangeResult> CreateAsync(
@@ -132,7 +142,12 @@ public sealed class ExpenseService(
         expenses.Add(expense);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return ExpenseChangeResult.Ok(expense);
+        // Evaluated for the user's current month: an expense dated earlier cannot change the
+        // budget they are living in today, so it never produces an alert.
+        var alerts = await budgetAlerts.EvaluateAsync(
+            userId, MonthPeriod.FromDate(today), cancellationToken);
+
+        return ExpenseChangeResult.Ok(expense, alerts);
     }
 
     public Task<Expense?> GetAsync(
@@ -218,7 +233,11 @@ public sealed class ExpenseService(
         expense.ChangeDate(expenseDate, today);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return ExpenseChangeResult.Ok(expense);
+
+        var alerts = await budgetAlerts.EvaluateAsync(
+            userId, MonthPeriod.FromDate(today), cancellationToken);
+
+        return ExpenseChangeResult.Ok(expense, alerts);
     }
 
     public async Task<bool> DeleteAsync(

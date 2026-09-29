@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Configuration;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
@@ -45,6 +46,23 @@ public sealed class RecurringExpenseNotifierTests
             .And.Contain("1 de septiembre de 2026")
             .And.Contain("🏠 Arriendo")
             .And.Contain("900.000");
+    }
+
+    [Fact]
+    public async Task A_crossed_budget_is_appended_to_the_recurring_message()
+    {
+        var sender = new RecordingTelegramSender();
+        var user = new User(999, "tester", "Test User");
+        var generated = new GeneratedRecurringExpense(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Arriendo", "🏠",
+            900_000, "Arriendo", new DateOnly(2026, 9, 1));
+        var alert = new BudgetAlert(Guid.NewGuid(), "Arriendo", "🏠", 1_000_000, 900_000, 80, 90m);
+        var result = new RecurringApplicationResult(user, [generated]) { Alerts = [alert] };
+
+        await Build(sender).NotifyAsync([result]);
+
+        var text = sender.Messages.Should().ContainSingle().Subject.Text;
+        text.Should().Contain("Arriendo").And.Contain("90 %");
     }
 
     [Fact]

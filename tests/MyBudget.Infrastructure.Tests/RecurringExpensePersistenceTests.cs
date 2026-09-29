@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Dates;
 using MyBudget.Application.Expenses;
 using MyBudget.Application.Recurring;
@@ -7,6 +8,7 @@ using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Recurring;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Infrastructure.Persistence.Repositories;
+using NSubstitute;
 
 namespace MyBudget.Infrastructure.Tests;
 
@@ -26,8 +28,17 @@ public sealed class RecurringExpensePersistenceTests(DatabaseFixture fixture) : 
             new ExpenseRepository(context),
             new CategoryRepository(context),
             new UserRepository(context),
+            SilentAlerts(),
             new UserLocalDate(clock ?? TimeProvider.System),
             new UnitOfWork(context));
+
+    private static IBudgetAlertService SilentAlerts()
+    {
+        var alerts = Substitute.For<IBudgetAlertService>();
+        alerts.EvaluateAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetAlert>>([]));
+        return alerts;
+    }
 
     private static RecurringExpense NewRule(
         Guid userId,
@@ -234,6 +245,7 @@ public sealed class RecurringExpensePersistenceTests(DatabaseFixture fixture) : 
         var items = await new ExpenseService(
                 new ExpenseRepository(verification),
                 new CategoryRepository(verification),
+                SilentAlerts(),
                 new UnitOfWork(verification))
             .ListMonthAsync(user.Id, new MonthPeriod(2026, 9));
         items.Should().ContainSingle().Which.Amount.Should().Be(900_000);

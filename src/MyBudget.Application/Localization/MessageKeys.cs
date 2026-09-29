@@ -152,6 +152,8 @@ public static class MessageKeys
     public const string BudgetCategoryInactive = "Budget.CategoryInactive";
     public const string BudgetCategoryNotFound = "Budget.CategoryNotFound";
     public const string BudgetNoCategories = "Budget.NoCategories";
+    public const string BudgetAlertNearLimit = "Budget.AlertNearLimit";
+    public const string BudgetAlertExceeded = "Budget.AlertExceeded";
 
     public const string SummaryHeader = "Summary.Header";
     public const string SummaryTotalSpent = "Summary.TotalSpent";
@@ -372,6 +374,8 @@ public static class MessageKeys
         BudgetCategoryInactive,
         BudgetCategoryNotFound,
         BudgetNoCategories,
+        BudgetAlertNearLimit,
+        BudgetAlertExceeded,
         SummaryHeader,
         SummaryTotalSpent,
         SummaryTotalBudget,

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Recurring;
 using MyBudget.Infrastructure.Persistence;
+using MyBudget.Infrastructure.Persistence.Records;
 using MyBudget.Infrastructure.Persistence.Repositories;
 
 namespace MyBudget.Infrastructure.Tests;
@@ -35,6 +36,11 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
             context.RecurringExpenses.Add(
                 new RecurringExpense(user.Id, category.Id, 900_000, "Arriendo", 1, new DateOnly(2026, 9, 1)));
 
+            // Categories first: EF does not know the composite category foreign key, so a
+            // budget alert added in the same batch could be inserted before its category.
+            await context.SaveChangesAsync();
+
+            context.BudgetAlerts.Add(NewBudgetAlert(user.Id, category.Id));
             await context.SaveChangesAsync();
         }
 
@@ -52,6 +58,7 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
             (await verification.MonthlyBudgetCategories.CountAsync()).Should().Be(0);
             (await verification.Expenses.CountAsync()).Should().Be(0);
             (await verification.RecurringExpenses.CountAsync()).Should().Be(0);
+            (await verification.BudgetAlerts.CountAsync()).Should().Be(0);
         }
     }
 
@@ -181,6 +188,42 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
         error.SqlState.Should().Be(ForeignKeyViolation);
         error.ConstraintName.Should().Be("fk_recurring_expenses_category_same_user");
     }
+
+    [Fact]
+    public async Task Deleting_a_category_that_has_a_budget_alert_is_blocked()
+    {
+        await using var context = CreateContext();
+        var user = TestData.NewUser();
+        var category = TestData.NewCategory(user.Id, "Mercado");
+        context.Users.Add(user);
+        context.Categories.Add(category);
+        await context.SaveChangesAsync();
+
+        // Added after the category exists: EF cannot order an insert by a composite foreign
+        // key it does not model.
+        context.BudgetAlerts.Add(NewBudgetAlert(user.Id, category.Id));
+        await context.SaveChangesAsync();
+
+        var error = await ExpectDatabaseErrorAsync(async () =>
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM categories WHERE id = {category.Id}");
+        });
+
+        error.SqlState.Should().Be(ForeignKeyViolation);
+        error.ConstraintName.Should().Be("fk_budget_alerts_category_same_user");
+    }
+
+    private static BudgetAlertRecord NewBudgetAlert(Guid userId, Guid categoryId) => new()
+    {
+        Id = Guid.NewGuid(),
+        UserId = userId,
+        CategoryId = categoryId,
+        Year = 2026,
+        Month = 9,
+        Threshold = 80,
+        NotifiedAt = new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero),
+    };
 
     [Fact]
     public async Task An_allocation_is_persisted_for_the_owner()

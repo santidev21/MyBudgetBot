@@ -1,5 +1,7 @@
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Dates;
+using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
 using MyBudget.Domain.Expenses;
 using MyBudget.Domain.Recurring;
@@ -73,7 +75,11 @@ public sealed record GeneratedRecurringExpense(
 /// <summary>The expenses one run created for one user, and the user to tell about them.</summary>
 public sealed record RecurringApplicationResult(
     User User,
-    IReadOnlyList<GeneratedRecurringExpense> Generated);
+    IReadOnlyList<GeneratedRecurringExpense> Generated)
+{
+    /// <summary>Budget thresholds this run pushed a category past, if any.</summary>
+    public IReadOnlyList<BudgetAlert> Alerts { get; init; } = [];
+}
 
 /// <summary>
 /// Recurring rule use cases, plus the nightly application pass.
@@ -121,6 +127,7 @@ public sealed class RecurringExpenseService(
     IExpenseRepository expenses,
     ICategoryRepository categories,
     IUserRepository users,
+    IBudgetAlertService budgetAlerts,
     IUserLocalDate localDate,
     IUnitOfWork unitOfWork) : IRecurringExpenseService
 {
@@ -296,6 +303,18 @@ public sealed class RecurringExpenseService(
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        return results;
+        // Evaluated after the commit so the new expenses are already part of the month's usage.
+        var withAlerts = new List<RecurringApplicationResult>(results.Count);
+
+        foreach (var result in results)
+        {
+            var today = localDate.Today(result.User.TimeZone);
+            var alerts = await budgetAlerts.EvaluateAsync(
+                result.User.Id, MonthPeriod.FromDate(today), cancellationToken);
+
+            withAlerts.Add(result with { Alerts = alerts });
+        }
+
+        return withAlerts;
     }
 }

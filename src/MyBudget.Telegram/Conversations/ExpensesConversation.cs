@@ -677,8 +677,11 @@ internal sealed class ExpensesConversation(
             return await BuildListAsync(context, [Said(context, key)], cancellationToken);
         }
 
-        return await BuildDetailAsync(
-            context, expenseId, [Said(context, MessageKeys.ExpenseUpdated)], cancellationToken);
+        var notices = new List<BotResponse> { Said(context, MessageKeys.ExpenseUpdated) };
+        notices.AddRange(BudgetAlertMessages.Render(
+            messages, moneyFormatter, context.Language, context.User.Currency, result.Alerts));
+
+        return await BuildDetailAsync(context, expenseId, notices, cancellationToken);
     }
 
     private string DetailText(ConversationContext context, ExpenseListItem item)

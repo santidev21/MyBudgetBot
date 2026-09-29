@@ -1,8 +1,10 @@
 using FluentAssertions;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Expenses;
 using MyBudget.Domain.Budgets;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Infrastructure.Persistence.Repositories;
+using NSubstitute;
 
 namespace MyBudget.Infrastructure.Tests;
 
@@ -20,7 +22,15 @@ public sealed class ExpensePersistenceTests(DatabaseFixture fixture) : DatabaseT
     private static readonly MonthPeriod September = new(2026, 9);
 
     private static ExpenseService BuildService(MyBudgetDbContext context) =>
-        new(new ExpenseRepository(context), new CategoryRepository(context), new UnitOfWork(context));
+        new(new ExpenseRepository(context), new CategoryRepository(context), SilentAlerts(), new UnitOfWork(context));
+
+    private static IBudgetAlertService SilentAlerts()
+    {
+        var alerts = Substitute.For<IBudgetAlertService>();
+        alerts.EvaluateAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetAlert>>([]));
+        return alerts;
+    }
 
     [Fact]
     public async Task Creating_an_expense_persists_it_in_the_month()
