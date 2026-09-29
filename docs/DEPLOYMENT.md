@@ -92,6 +92,7 @@ CONFIRM_RESTORE=RESTORE ./scripts/restore.sh <pre-deploy-dump>
 | Command | Effect |
 |---|---|
 | `./scripts/deploy.sh deploy` | Validated, backed-up, clean deploy |
+| `./scripts/deploy.sh check` | Run the pre-deploy validations without building |
 | `./scripts/deploy.sh status` | Container states |
 | `./scripts/deploy.sh logs` | Follow application logs |
 | `./scripts/deploy.sh verify` | Check health endpoints |

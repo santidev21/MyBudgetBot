@@ -3,6 +3,7 @@
 # MyBudget-bot production deployment.
 #
 #   ./scripts/deploy.sh deploy     validate, back up, pull, build, up, verify
+#   ./scripts/deploy.sh check      run the pre-deploy validations only
 #   ./scripts/deploy.sh status     container states
 #   ./scripts/deploy.sh logs       follow application logs
 #   ./scripts/deploy.sh verify     check health endpoints
@@ -178,6 +179,13 @@ rollback() {
 
 case "${1:-deploy}" in
     deploy) deploy ;;
+    check)
+        validate_docker
+        validate_env
+        validate_worktree
+        validate_config
+        log "Pre-deploy checks passed."
+        ;;
     status) cd "$DEPLOY_DIR" && $COMPOSE ps ;;
     logs) cd "$DEPLOY_DIR" && $COMPOSE logs -f app ;;
     verify)
@@ -185,7 +193,7 @@ case "${1:-deploy}" in
         ;;
     rollback) rollback ;;
     *)
-        echo "Usage: $0 [deploy|status|logs|verify|rollback]"
+        echo "Usage: $0 [deploy|check|status|logs|verify|rollback]"
         exit 1
         ;;
 esac
