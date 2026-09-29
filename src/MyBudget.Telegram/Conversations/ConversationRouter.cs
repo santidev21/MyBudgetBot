@@ -134,6 +134,7 @@ internal sealed class ConversationRouter(
             MessageKeys.MenuCategories => CategoriesConversation.ConversationName,
             MessageKeys.MenuAddExpense => ExpenseConversation.ConversationName,
             MessageKeys.MenuExpenses => ExpensesConversation.ConversationName,
+            MessageKeys.MenuRecurring => RecurringConversation.ConversationName,
             MessageKeys.MenuSummary => SummaryConversation.ConversationName,
             MessageKeys.MenuStatistics => StatisticsConversation.ConversationName,
             _ => null,

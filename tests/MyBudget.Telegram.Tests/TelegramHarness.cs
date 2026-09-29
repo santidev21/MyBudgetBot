@@ -9,6 +9,7 @@ using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
+using MyBudget.Application.Recurring;
 using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 using MyBudget.Domain.Users;
@@ -49,6 +50,7 @@ internal sealed class TelegramHarness
         CategoryService = Substitute.For<ICategoryService>();
         BudgetService = Substitute.For<IBudgetService>();
         ExpenseService = Substitute.For<IExpenseService>();
+        RecurringService = Substitute.For<IRecurringExpenseService>();
         ReportService = Substitute.For<IReportService>();
         PendingActions = Substitute.For<IPendingActionStore>();
 
@@ -92,12 +94,14 @@ internal sealed class TelegramHarness
 
         Summary = new SummaryConversation(Messages, ReportService, formatter, localDate);
         Statistics = new StatisticsConversation(Messages, ReportService, formatter, localDate);
+        Recurring = new RecurringConversation(
+            Messages, RecurringService, CategoryService, moneyParser, formatter, localDate, Menu);
 
         Router = new ConversationRouter(
             Conversations,
             Messages,
             Menu,
-            [Onboarding, Categories, Expenses, ExpenseList, Summary, Statistics],
+            [Onboarding, Categories, Expenses, ExpenseList, Recurring, Summary, Statistics],
             [UndoHandler],
             compactParser,
             telegramOptions,
@@ -142,6 +146,10 @@ internal sealed class TelegramHarness
     public CategoriesConversation Categories { get; }
 
     public IExpenseService ExpenseService { get; }
+
+    public IRecurringExpenseService RecurringService { get; }
+
+    public RecurringConversation Recurring { get; }
 
     public IPendingActionStore PendingActions { get; }
 

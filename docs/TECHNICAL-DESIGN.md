@@ -80,6 +80,8 @@ MonthlyBudget         Id, UserId, Year, Month, Allocations[], CreatedAt, Updated
 MonthlyBudgetCategory Id, UserId, MonthlyBudgetId, CategoryId, Amount, CreatedAt, UpdatedAt
 Expense               Id, UserId, CategoryId, Amount, Description?, ExpenseDate,
                       CategorizationSource, CreatedAt, UpdatedAt
+RecurringExpense      Id, UserId, CategoryId, Amount, Description?, DayOfMonth,
+                      StartDate, EndDate?, IsActive, LastGeneratedDate?, CreatedAt, UpdatedAt
 MonthPeriod           value object (Year, Month) with Previous/Next/Contains/FirstDay/LastDay
 BudgetLine / BudgetMath   pure derived values: spent, remaining, usage, overage
 CategorizationSource  Manual | Matched | Ambiguous | Learned
@@ -127,8 +129,8 @@ Structural decisions:
    silently picking one. Uniqueness is per `(category_id, normalized_alias)`.
 
 Tables: `users`, `categories`, `category_aliases`, `monthly_budgets`,
-`monthly_budget_categories`, `expenses`. Operational tables arrive with later phases:
-`telegram_updates` (idempotency inbox), `conversation_states`, `pending_actions`.
+`monthly_budget_categories`, `expenses`, `recurring_expenses`. Operational tables arrive with
+later phases: `telegram_updates` (idempotency inbox), `conversation_states`, `pending_actions`.
 
 Key constraints:
 
@@ -140,6 +142,7 @@ Key constraints:
 | `monthly_budgets` | unique `(user_id, year, month)`; month 1–12; year 2000–2100 |
 | `monthly_budget_categories` | amount ≥ 0; unique `(monthly_budget_id, category_id)` |
 | `expenses` | `0 < amount ≤ 999999999999`; description ≤ 500; source in a fixed set |
+| `recurring_expenses` | `0 < amount ≤ 999999999999`; day 1–31; `end_date` null or ≥ `start_date`; same composite FK to `categories` |
 
 ## 5. Historical monthly budget model
 
@@ -461,6 +464,11 @@ test proves the ambient culture is ignored.
 9. **Configuration** — language, time zone, currency (read-only until multi-currency),
    delete my data.
 10. **Operational alerts** — backup verification failures are sent to the admin user.
+11. **Recurring expenses** — list, create, pause, resume and delete monthly rules (rent,
+    subscriptions). The rule is configuration: a periodic pass applies every due occurrence as
+    a real expense, dated in the user's calendar, and tells the user what it registered.
+    Deleting a rule never touches the expenses it already produced; the day of month clamps to
+    the last day of a shorter month.
 
 ## 12. MVP implementation phases
 
@@ -475,7 +483,7 @@ test proves the ambient culture is ignored.
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout — **done** |
-| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Not started without a real need |
+| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Recurring expenses **done**; the rest starts only with a real need |
 
 ## 13. Important edge cases
 
@@ -633,7 +641,12 @@ conflict prompt, architecture and repository contract tests, the summary, statis
 date-range history messages (asserted verbatim), the period queries against real PostgreSQL
 (grouped sums, user isolation, the range boundary and a full keyset walk), the per-user inbound
 throttle (budget, sliding window, one notice per window, independent budgets) and the outbound
-429 retry policy (fallbacks and the cap). 708 tests, all green.
+429 retry policy (fallbacks and the cap). 750 tests, all green.
+
+Recurring expenses added: the domain calendar arithmetic (month-end clamping, catch-up,
+inclusive end dates and the forward-only generation marker), rule persistence with the
+composite ownership foreign key, the idempotent application pass in each user's time zone,
+the management conversation and the notification message.
 
 The restore drill is operational rather than unit-tested: it ran against the local stack on
 2026-09-28 and its output and the corrupt-dump failure path are recorded in

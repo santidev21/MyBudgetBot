@@ -10,6 +10,7 @@ using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
+using MyBudget.Application.Recurring;
 using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 using NSubstitute;
@@ -44,6 +45,7 @@ public sealed class ApplicationServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<ICategoryRepository>());
         services.AddScoped(_ => Substitute.For<IBudgetRepository>());
         services.AddScoped(_ => Substitute.For<IExpenseRepository>());
+        services.AddScoped(_ => Substitute.For<IRecurringExpenseRepository>());
         services.AddScoped(_ => Substitute.For<IExpenseReadRepository>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddSingleton(TimeProvider.System);
@@ -73,6 +75,7 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<ICategoryService>().Should().BeOfType<CategoryService>();
         scope.ServiceProvider.GetRequiredService<IBudgetService>().Should().BeOfType<BudgetService>();
         scope.ServiceProvider.GetRequiredService<IExpenseService>().Should().BeOfType<ExpenseService>();
+        scope.ServiceProvider.GetRequiredService<IRecurringExpenseService>().Should().BeOfType<RecurringExpenseService>();
         scope.ServiceProvider.GetRequiredService<IReportService>().Should().BeOfType<ReportService>();
         scope.ServiceProvider.GetRequiredService<IUserLocalDate>().Should().BeOfType<UserLocalDate>();
     }

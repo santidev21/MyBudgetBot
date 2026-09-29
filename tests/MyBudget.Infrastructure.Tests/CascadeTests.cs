@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using MyBudget.Domain.Budgets;
+using MyBudget.Domain.Recurring;
 using MyBudget.Infrastructure.Persistence;
 using MyBudget.Infrastructure.Persistence.Repositories;
 
@@ -31,6 +32,8 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
             context.Categories.Add(category);
             context.MonthlyBudgets.Add(budget);
             context.Expenses.Add(TestData.NewExpense(user.Id, category.Id));
+            context.RecurringExpenses.Add(
+                new RecurringExpense(user.Id, category.Id, 900_000, "Arriendo", 1, new DateOnly(2026, 9, 1)));
 
             await context.SaveChangesAsync();
         }
@@ -48,6 +51,7 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
             (await verification.MonthlyBudgets.CountAsync()).Should().Be(0);
             (await verification.MonthlyBudgetCategories.CountAsync()).Should().Be(0);
             (await verification.Expenses.CountAsync()).Should().Be(0);
+            (await verification.RecurringExpenses.CountAsync()).Should().Be(0);
         }
     }
 
@@ -154,6 +158,28 @@ public sealed class CascadeTests(DatabaseFixture fixture) : DatabaseTestBase(fix
 
         error.SqlState.Should().Be(ForeignKeyViolation);
         error.ConstraintName.Should().Be("fk_monthly_budget_categories_category_same_user");
+    }
+
+    [Fact]
+    public async Task Deleting_a_category_that_still_has_a_recurring_rule_is_blocked()
+    {
+        await using var context = CreateContext();
+        var user = TestData.NewUser();
+        var category = TestData.NewCategory(user.Id, "Arriendo");
+        context.Users.Add(user);
+        context.Categories.Add(category);
+        context.RecurringExpenses.Add(
+            new RecurringExpense(user.Id, category.Id, 900_000, "Arriendo", 1, new DateOnly(2026, 9, 1)));
+        await context.SaveChangesAsync();
+
+        var error = await ExpectDatabaseErrorAsync(async () =>
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"DELETE FROM categories WHERE id = {category.Id}");
+        });
+
+        error.SqlState.Should().Be(ForeignKeyViolation);
+        error.ConstraintName.Should().Be("fk_recurring_expenses_category_same_user");
     }
 
     [Fact]

@@ -44,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IBudgetRepository, BudgetRepository>();
         services.AddScoped<IExpenseRepository, ExpenseRepository>();
+        services.AddScoped<IRecurringExpenseRepository, RecurringExpenseRepository>();
         services.AddScoped<IExpenseReadRepository, ExpenseReadRepository>();
         services.AddScoped<IUpdateInbox, UpdateInbox>();
         services.AddScoped<IConversationStore, ConversationStore>();

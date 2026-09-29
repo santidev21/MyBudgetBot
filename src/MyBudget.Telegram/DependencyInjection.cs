@@ -5,6 +5,7 @@ using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
 using MyBudget.Telegram.RateLimiting;
+using MyBudget.Telegram.Recurring;
 using Telegram.Bot;
 
 namespace MyBudget.Telegram;
@@ -43,6 +44,11 @@ public static class DependencyInjection
             services.AddSingleton<ITelegramSender, TelegramSender>();
             services.AddSingleton<ITelegramProvisioner, TelegramProvisioner>();
 
+            // Only with a token: registering a recurring expense the user is never told about
+            // would be worse than waiting for the next start.
+            services.AddSingleton<RecurringExpenseNotifier>();
+            services.AddHostedService<RecurringExpenseScheduler>();
+
             // Registered here so polling simply does not run when webhooks are the transport.
             services.AddHostedService<TelegramPollingService>();
         }
@@ -57,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<IConversation, CategoriesConversation>();
         services.AddScoped<IConversation, ExpenseConversation>();
         services.AddScoped<IConversation, ExpensesConversation>();
+        services.AddScoped<IConversation, RecurringConversation>();
         services.AddScoped<IConversation, SummaryConversation>();
         services.AddScoped<IConversation, StatisticsConversation>();
         services.AddScoped<IGlobalCallback, ExpenseUndoHandler>();

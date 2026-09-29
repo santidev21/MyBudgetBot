@@ -70,14 +70,14 @@ public sealed class PresentationTests
     }
 
     [Fact]
-    public void The_main_menu_is_a_persistent_reply_keyboard_with_six_items()
+    public void The_main_menu_is_a_persistent_reply_keyboard_with_seven_items()
     {
         var messages = new ResourceUserMessages(Microsoft.Extensions.Options.Options.Create(new LocalizationOptions()));
         var keyboard = new MainMenu(messages).ReplyKeyboard("es");
 
         keyboard.Kind.Should().Be(BotKeyboardKind.Reply);
-        keyboard.Rows.Should().HaveCount(3);
-        keyboard.Rows.SelectMany(row => row).Should().HaveCount(6);
+        keyboard.Rows.Should().HaveCount(4);
+        keyboard.Rows.SelectMany(row => row).Should().HaveCount(7);
         keyboard.Rows.SelectMany(row => row).Should().OnlyContain(button => button.CallbackData == null);
     }
 

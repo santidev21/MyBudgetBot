@@ -53,6 +53,9 @@
   <data name="Menu.Expenses" xml:space="preserve">
     <value>📋 Gastos</value>
   </data>
+  <data name="Menu.Recurring" xml:space="preserve">
+    <value>🔁 Recurrentes</value>
+  </data>
   <data name="Menu.Categories" xml:space="preserve">
     <value>🏷️ Categorías</value>
   </data>
@@ -526,6 +529,97 @@
   </data>
   <data name="History.ButtonPrevious" xml:space="preserve">
     <value>⬅️ Anterior</value>
+  </data>
+
+  <data name="Recurring.ListHeader" xml:space="preserve">
+    <value>🔁 Gastos recurrentes</value>
+  </data>
+  <data name="Recurring.Empty" xml:space="preserve">
+    <value>Todavía no tienes gastos recurrentes. Crea uno y lo registraré todos los meses.</value>
+  </data>
+  <data name="Recurring.Line" xml:space="preserve">
+    <value>{0} · {1} · día {2}</value>
+  </data>
+  <data name="Recurring.InactiveLine" xml:space="preserve">
+    <value>{0} · {1} · día {2} · ⏸️ en pausa</value>
+  </data>
+  <data name="Recurring.ButtonNew" xml:space="preserve">
+    <value>➕ Nueva regla</value>
+  </data>
+  <data name="Recurring.ButtonPause" xml:space="preserve">
+    <value>⏸️ Pausar</value>
+  </data>
+  <data name="Recurring.ButtonResume" xml:space="preserve">
+    <value>▶️ Activar</value>
+  </data>
+  <data name="Recurring.ButtonDelete" xml:space="preserve">
+    <value>🗑️ Eliminar</value>
+  </data>
+  <data name="Recurring.ButtonDeleteConfirm" xml:space="preserve">
+    <value>🗑️ Sí, eliminar</value>
+  </data>
+  <data name="Recurring.ButtonBack" xml:space="preserve">
+    <value>⬅️ Volver</value>
+  </data>
+  <data name="Recurring.DeleteConfirm" xml:space="preserve">
+    <value>¿Elimino esta regla? Los gastos que ya registró siguen en tu historial.</value>
+  </data>
+  <data name="Recurring.AmountPrompt" xml:space="preserve">
+    <value>¿Cuánto es el gasto recurrente?</value>
+  </data>
+  <data name="Recurring.DescriptionPrompt" xml:space="preserve">
+    <value>¿Qué es? Por ejemplo: arriendo, Netflix, luz.</value>
+  </data>
+  <data name="Recurring.DayPrompt" xml:space="preserve">
+    <value>¿Qué día del mes se cobra? Escribe un número del 1 al 31.</value>
+  </data>
+  <data name="Recurring.DayInvalid" xml:space="preserve">
+    <value>El día debe estar entre 1 y 31.</value>
+  </data>
+  <data name="Recurring.DayLine" xml:space="preserve">
+    <value>Día del mes: {0}</value>
+  </data>
+  <data name="Recurring.ConfirmHeader" xml:space="preserve">
+    <value>🔁 Nueva regla recurrente</value>
+  </data>
+  <data name="Recurring.ConfirmNote" xml:space="preserve">
+    <value>La registraré automáticamente cada mes, en la fecha indicada.</value>
+  </data>
+  <data name="Recurring.Created" xml:space="preserve">
+    <value>Listo, creé la regla. Cada mes registraré ese gasto.</value>
+  </data>
+  <data name="Recurring.Paused" xml:space="preserve">
+    <value>Regla en pausa: no volveré a registrar gastos de ella.</value>
+  </data>
+  <data name="Recurring.Resumed" xml:space="preserve">
+    <value>Regla activa de nuevo.</value>
+  </data>
+  <data name="Recurring.Deleted" xml:space="preserve">
+    <value>Eliminé la regla. Los gastos que ya registró siguen en tu historial.</value>
+  </data>
+  <data name="Recurring.NotFound" xml:space="preserve">
+    <value>No encontré esa regla.</value>
+  </data>
+  <data name="Recurring.DetailHeader" xml:space="preserve">
+    <value>🔁 {0}</value>
+  </data>
+  <data name="Recurring.DetailStatus" xml:space="preserve">
+    <value>Estado: {0}</value>
+  </data>
+  <data name="Recurring.DetailLastGenerated" xml:space="preserve">
+    <value>Último registrado: {0}</value>
+  </data>
+  <data name="Recurring.StatusActive" xml:space="preserve">
+    <value>activa</value>
+  </data>
+  <data name="Recurring.StatusPaused" xml:space="preserve">
+    <value>en pausa</value>
+  </data>
+  <data name="Recurring.AppliedHeader" xml:space="preserve">
+    <value>🔁 Registré tus gastos recurrentes:</value>
+  </data>
+  <data name="Recurring.AppliedLine" xml:space="preserve">
+    <value>• {0} — {1}: {2}</value>
   </data>
 
   <data name="Month.January" xml:space="preserve">

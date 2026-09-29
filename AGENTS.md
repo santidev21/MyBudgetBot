@@ -212,6 +212,20 @@ Database and application ports are never published in production.
 - **Pre-deploy and nightly dumps live in the same volume.** `deploy.sh` uses the `backup-lib`
   primitives so the pre-deploy dump is verified and pruned like any other, instead of sitting on
   a host path that off-site copies and the drill would never see.
+- **A recurring rule is configuration, never history.** Deleting a rule leaves its expenses
+  alone. `last_generated_date` and the generated expense commit in the same transaction, and
+  that is the whole idempotency argument: a second pass cannot duplicate a month.
+- **Month-end clamping is deliberate.** A rule due on the 31st falls on the 28th or 29th in
+  February. The rule stores a day of month plus a `DateOnly` start, never a "next due" instant.
+- **The recurring scheduler is registered only when a bot token is configured.** Recording an
+  expense the user is never told about would be worse than waiting for the next start. Its first
+  pass is delayed one minute so host startup never blocks on the database.
+- **Adding a menu section touches more than the label.** `MainMenu.ActionKeys`, the reply
+  keyboard rows and the test that pins seven items in four rows all move together; the router
+  then needs the new key mapped or the tap answers "not ready yet".
+- **`ApplyDueAsync` loads categories per user to label the notification at read time.** The
+  label is not stored on the rule or the expense: renaming a category still updates how old
+  recurring expenses are reported, like every other report.
 
 ## Status and handoff
 
@@ -228,17 +242,19 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 6  Category matching and keyword learning   <-- done
 [x] Phase 7  Summary and statistics                   <-- done
 [x] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- done
-[ ] Phase 9  Optional: charts, recurring expenses, CSV export/import   <-- next
+[x] Phase 9  Recurring expenses (the chosen optional piece)   <-- done
+[ ] Phase 9+ Optional: charts, CSV export/import, scheduled summaries   <-- only with a real need
 ```
 
 **Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
 account (in production over the webhook, in development over polling) it manages categories and
 monthly budgets, records expenses both guided and compact, suggests the category from the
 description, lets the user teach it a keyword, edits and deletes expenses, undoes a
-registration, and reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and the
-month's statistics (`📈 Estadísticas`). The nightly backup is verified by a real restore drill
-and the deploy refuses to run without a verified dump and a clean checkout. 708 tests green,
-`dotnet build` with zero warnings, `dotnet format` clean.
+registration, manages monthly recurring rules that the scheduler applies on their due date, and
+reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and the month's statistics
+(`📈 Estadísticas`). The nightly backup is verified by a real restore drill and the deploy
+refuses to run without a verified dump and a clean checkout. 750 tests green, `dotnet build`
+with zero warnings, `dotnet format` clean.
 
 ### Phase 8 delivered — hardening
 
@@ -263,6 +279,30 @@ and the deploy refuses to run without a verified dump and a clean checkout. 708 
 - **Reproducible deploy.** `deploy.sh` backs up and verifies before it builds, and `pull` now
   does `git reset --hard origin/main` plus `git clean -fd` and asserts a clean working tree, so
   the build context is exactly the commit. The pre-deploy dump lives in the same backup volume.
+
+### Phase 9 delivered — recurring expenses
+
+The chosen optional piece. All exercised through Telegram conversations:
+
+- `🔁 Recurrentes` joins the persistent menu. The flow lists the rules, and creates one through
+  amount, description, category and day of month, with a confirmation before anything is
+  written. A rule can be paused, resumed and deleted; deleting it never touches the expenses it
+  already produced.
+- `RecurringExpense` is monthly by design: the day of month clamps to the last day of a shorter
+  month, an optional end date is inclusive, and `DueDates(today)` returns every missed
+  occurrence oldest first without writing anything.
+- `RecurringExpenseScheduler` runs every six hours (first pass one minute after startup) and
+  applies due occurrences through `IRecurringExpenseService.ApplyDueAsync`. The pass computes
+  each user's calendar date with `IUserLocalDate`, inserts an ordinary `Expense` dated that day,
+  and moves `LastGeneratedDate` in the same transaction: a second run cannot duplicate a month.
+  Only registered when Telegram is configured, because recording an expense nobody is told
+  about is worse than waiting.
+- `RecurringExpenseNotifier` sends one message per user listing what was registered, and a
+  delivery failure is logged, never propagated: the expenses are already committed.
+
+Deferred deliberately: end dates are supported by the domain but not offered by the flow, and
+weekly/yearly frequencies would each need their own anchor rule. The other optional pieces
+(charts, CSV, scheduled summaries) still start only with a real need.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -360,10 +400,11 @@ verbatim, and the period queries are covered against real PostgreSQL in
 `ExpenseReportQueryTests` (grouped sums, user isolation, the range boundary, and a full keyset
 walk without gaps or duplicates).
 
-### Prompt for the next session — Phase 9 (optional)
+### Prompt for the next session — remaining optional pieces
 
-Phase 9 starts only if there is a real need; nothing in it is a prerequisite for a
-working bot. Paste this if you decide to build it:
+Recurring expenses are done. Charts, CSV and scheduled summaries start only if there is a
+real need; nothing in them is a prerequisite for a working bot. Paste this if you decide to
+build one:
 
 > Trabajamos en `/home/santidev21/Dev/MyBudget-bot`, un bot de presupuesto personal para
 > Telegram (.NET 8 + PostgreSQL, Clean Architecture, modular monolith).
@@ -374,14 +415,15 @@ working bot. Paste this if you decide to build it:
 > 2. Mira `git log --oneline`.
 > 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
 >
-> Contexto: fases 0–8 completas, 708 tests verdes, build sin warnings, `dotnet format` limpio.
-> El bot registra gastos, aprende keywords, tiene resumen/estadísticas/historial, backups
-> nocturnos verificados con restore real y deploy reproducible. `.env` local con bot de DEV en
-> polling, base en `127.0.0.1:5435`; el VPS con webhook está desplegado.
+> Contexto: fases 0–9 completas, 750 tests verdes, build sin warnings, `dotnet format` limpio.
+> El bot registra gastos, aprende keywords, tiene resumen/estadísticas/historial, gestiona
+> reglas recurrentes que el scheduler aplica en su fecha, backups nocturnos verificados con
+> restore real y deploy reproducible. `.env` local con bot de DEV en polling, base en
+> `127.0.0.1:5435`; el VPS con webhook está desplegado.
 >
-> Haz la **Phase 9 (opcional)**: gráficos, gastos recurrentes, exportación/importación CSV y
-> resúmenes programados. Elige **una** sola pieza con una necesidad real, no todas. Alcance de
-> cada opción en `docs/TECHNICAL-DESIGN.md` §12.
+> Haz **una** de las piezas opcionales que quedan: gráficos, exportación/importación CSV o
+> resúmenes programados. Elige la que tenga una necesidad real, no todas. Alcance de cada
+> opción en `docs/TECHNICAL-DESIGN.md` §12.
 >
 > Reglas que no se rompen: dinero `long` exacto; `ExpenseDate` es `DateOnly` en hora local;
 > ownership con `userId` primero y FKs compuestas; la historia no se borra (desactivar); nada de

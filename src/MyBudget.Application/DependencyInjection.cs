@@ -9,6 +9,7 @@ using MyBudget.Application.Expenses;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
+using MyBudget.Application.Recurring;
 using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 
@@ -56,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBudgetService, BudgetService>();
         services.AddScoped<IExpenseService, ExpenseService>();
+        services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
         services.AddScoped<IReportService, ReportService>();
 
         return services;

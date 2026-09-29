@@ -18,6 +18,7 @@ internal sealed class MainMenu(IUserMessages messages)
         MessageKeys.MenuAddExpense,
         MessageKeys.MenuSummary,
         MessageKeys.MenuExpenses,
+        MessageKeys.MenuRecurring,
         MessageKeys.MenuCategories,
         MessageKeys.MenuStatistics,
         MessageKeys.MenuSettings,
@@ -30,10 +31,13 @@ internal sealed class MainMenu(IUserMessages messages)
         ],
         [
             messages.Get(language, MessageKeys.MenuExpenses),
-            messages.Get(language, MessageKeys.MenuCategories),
+            messages.Get(language, MessageKeys.MenuRecurring),
         ],
         [
+            messages.Get(language, MessageKeys.MenuCategories),
             messages.Get(language, MessageKeys.MenuStatistics),
+        ],
+        [
             messages.Get(language, MessageKeys.MenuSettings),
         ]);
 

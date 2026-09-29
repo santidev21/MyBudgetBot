@@ -24,6 +24,7 @@ public static class MessageKeys
     public const string MenuSummary = "Menu.Summary";
     public const string MenuAddExpense = "Menu.AddExpense";
     public const string MenuExpenses = "Menu.Expenses";
+    public const string MenuRecurring = "Menu.Recurring";
     public const string MenuCategories = "Menu.Categories";
     public const string MenuStatistics = "Menu.Statistics";
     public const string MenuSettings = "Menu.Settings";
@@ -192,6 +193,37 @@ public static class MessageKeys
     public const string HistoryButtonMore = "History.ButtonMore";
     public const string HistoryButtonPrevious = "History.ButtonPrevious";
 
+    public const string RecurringListHeader = "Recurring.ListHeader";
+    public const string RecurringEmpty = "Recurring.Empty";
+    public const string RecurringLine = "Recurring.Line";
+    public const string RecurringInactiveLine = "Recurring.InactiveLine";
+    public const string RecurringButtonNew = "Recurring.ButtonNew";
+    public const string RecurringButtonPause = "Recurring.ButtonPause";
+    public const string RecurringButtonResume = "Recurring.ButtonResume";
+    public const string RecurringButtonDelete = "Recurring.ButtonDelete";
+    public const string RecurringButtonDeleteConfirm = "Recurring.ButtonDeleteConfirm";
+    public const string RecurringButtonBack = "Recurring.ButtonBack";
+    public const string RecurringDeleteConfirm = "Recurring.DeleteConfirm";
+    public const string RecurringAmountPrompt = "Recurring.AmountPrompt";
+    public const string RecurringDescriptionPrompt = "Recurring.DescriptionPrompt";
+    public const string RecurringDayPrompt = "Recurring.DayPrompt";
+    public const string RecurringDayInvalid = "Recurring.DayInvalid";
+    public const string RecurringDayLine = "Recurring.DayLine";
+    public const string RecurringConfirmHeader = "Recurring.ConfirmHeader";
+    public const string RecurringConfirmNote = "Recurring.ConfirmNote";
+    public const string RecurringCreated = "Recurring.Created";
+    public const string RecurringPaused = "Recurring.Paused";
+    public const string RecurringResumed = "Recurring.Resumed";
+    public const string RecurringDeleted = "Recurring.Deleted";
+    public const string RecurringNotFound = "Recurring.NotFound";
+    public const string RecurringDetailHeader = "Recurring.DetailHeader";
+    public const string RecurringDetailStatus = "Recurring.DetailStatus";
+    public const string RecurringDetailLastGenerated = "Recurring.DetailLastGenerated";
+    public const string RecurringStatusActive = "Recurring.StatusActive";
+    public const string RecurringStatusPaused = "Recurring.StatusPaused";
+    public const string RecurringAppliedHeader = "Recurring.AppliedHeader";
+    public const string RecurringAppliedLine = "Recurring.AppliedLine";
+
     public const string MonthJanuary = "Month.January";
     public const string MonthFebruary = "Month.February";
     public const string MonthMarch = "Month.March";
@@ -218,6 +250,7 @@ public static class MessageKeys
         MenuSummary,
         MenuAddExpense,
         MenuExpenses,
+        MenuRecurring,
         MenuCategories,
         MenuStatistics,
         MenuSettings,
@@ -372,6 +405,36 @@ public static class MessageKeys
         HistoryExpenseLine,
         HistoryButtonMore,
         HistoryButtonPrevious,
+        RecurringListHeader,
+        RecurringEmpty,
+        RecurringLine,
+        RecurringInactiveLine,
+        RecurringButtonNew,
+        RecurringButtonPause,
+        RecurringButtonResume,
+        RecurringButtonDelete,
+        RecurringButtonDeleteConfirm,
+        RecurringButtonBack,
+        RecurringDeleteConfirm,
+        RecurringAmountPrompt,
+        RecurringDescriptionPrompt,
+        RecurringDayPrompt,
+        RecurringDayInvalid,
+        RecurringDayLine,
+        RecurringConfirmHeader,
+        RecurringConfirmNote,
+        RecurringCreated,
+        RecurringPaused,
+        RecurringResumed,
+        RecurringDeleted,
+        RecurringNotFound,
+        RecurringDetailHeader,
+        RecurringDetailStatus,
+        RecurringDetailLastGenerated,
+        RecurringStatusActive,
+        RecurringStatusPaused,
+        RecurringAppliedHeader,
+        RecurringAppliedLine,
         MonthJanuary,
         MonthFebruary,
         MonthMarch,

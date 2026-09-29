@@ -41,6 +41,7 @@ public sealed class MigrationTests(DatabaseFixture fixture) : DatabaseTestBase(f
             "fk_expenses_category_same_user",
             "fk_monthly_budget_categories_budget_same_user",
             "fk_monthly_budget_categories_category_same_user",
+            "fk_recurring_expenses_category_same_user",
             "uq_categories_id_user",
             "uq_monthly_budgets_id_user");
     }
@@ -80,6 +81,26 @@ public sealed class MigrationTests(DatabaseFixture fixture) : DatabaseTestBase(f
             SELECT pg_get_constraintdef(oid)
             FROM pg_constraint
             WHERE conname = 'fk_expenses_category_same_user'
+            """;
+
+        var definition = (string?)await command.ExecuteScalarAsync();
+
+        definition.Should().NotBeNull();
+        definition.Should().NotContain("DEFERRABLE");
+        definition.Should().NotContain("CASCADE");
+    }
+
+    [Fact]
+    public async Task The_recurring_category_foreign_key_also_defers_and_cascades_nothing()
+    {
+        await using var context = CreateContext();
+        await context.Database.OpenConnectionAsync();
+
+        await using var command = context.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            SELECT pg_get_constraintdef(oid)
+            FROM pg_constraint
+            WHERE conname = 'fk_recurring_expenses_category_same_user'
             """;
 
         var definition = (string?)await command.ExecuteScalarAsync();
