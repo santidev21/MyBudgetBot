@@ -476,6 +476,12 @@ test proves the ambient culture is ignored.
 13. **Budget alerts** — when a category crosses 80 % and then 100 % of its monthly allocation,
     the bot says so once per threshold. The check runs inside the expense use cases (and the
     recurring pass), and the announced thresholds are recorded so the bot never repeats itself.
+14. **Monthly closing** — on the user's first local day of a month, the bot sends the closing of
+    the previous one: total spent, expense count, a comparison with the month before, the
+    biggest categories with text bars and, when the month was overspent, the amount. A button
+    copies the closed month's budget into the new one. The closing is claimed once per user and
+    month, so a restart cannot repeat it; a month with no spending and no budget is skipped, so
+    the bot never talks about nothing.
 
 ## 12. MVP implementation phases
 
@@ -490,7 +496,7 @@ test proves the ambient culture is ignored.
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout — **done** |
-| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Recurring expenses, charts and budget alerts **done**; CSV and scheduled summaries start only with a real need |
+| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Recurring expenses, charts, budget alerts and scheduled summaries **done**; CSV starts only with a real need |
 
 ## 13. Important edge cases
 
@@ -648,7 +654,7 @@ conflict prompt, architecture and repository contract tests, the summary, statis
 date-range history messages (asserted verbatim), the period queries against real PostgreSQL
 (grouped sums, user isolation, the range boundary and a full keyset walk), the per-user inbound
 throttle (budget, sliding window, one notice per window, independent budgets) and the outbound
-429 retry policy (fallbacks and the cap). 778 tests, all green.
+429 retry policy (fallbacks and the cap). 801 tests, all green.
 
 Recurring expenses added: the domain calendar arithmetic (month-end clamping, catch-up,
 inclusive end dates and the forward-only generation marker), rule persistence with the
@@ -663,6 +669,12 @@ Budget alerts added: the threshold policy in isolation (80 and 100, one fire per
 the highest reported when both cross at once, no threshold without an allocation), the store's
 month scope, uniqueness and ownership foreign key, and the message the expense and recurring
 flows append.
+
+Scheduled closings added: the exactly-once marker claimed with an upsert (integration, including
+the second pass that finds the claim taken), the local-first-day decision, the empty-month skip
+and the previous-month report in the application service, the verbatim closing render with its
+comparison and text bars, the scheduler pass that resolves the scoped service from a fresh scope,
+and the global copy-budget callback.
 
 The restore drill is operational rather than unit-tested: it ran against the local stack on
 2026-09-28 and its output and the corrupt-dump failure path are recorded in

@@ -87,6 +87,7 @@ internal sealed class TelegramHarness
             Menu);
 
         UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
+        ClosingCopyHandler = new ClosingCopyHandler(BudgetService, localDate, Messages, Menu);
 
         ExpenseList = new ExpensesConversation(
             Messages, ExpenseService, ReportService, CategoryService, moneyParser, formatter, dateParser,
@@ -102,7 +103,7 @@ internal sealed class TelegramHarness
             Messages,
             Menu,
             [Onboarding, Categories, Expenses, ExpenseList, Recurring, Summary, Statistics],
-            [UndoHandler],
+            [UndoHandler, ClosingCopyHandler],
             compactParser,
             telegramOptions,
             clock);
@@ -162,6 +163,8 @@ internal sealed class TelegramHarness
     public StatisticsConversation Statistics { get; }
 
     public ExpenseUndoHandler UndoHandler { get; }
+
+    public ClosingCopyHandler ClosingCopyHandler { get; }
 
     public ConversationRouter Router { get; }
 

@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IExpenseService, ExpenseService>();
         services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IMonthlyClosingService, MonthlyClosingService>();
 
         return services;
     }

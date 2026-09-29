@@ -15,5 +15,8 @@ internal sealed class UserRepository(MyBudgetDbContext dbContext) : IUserReposit
     public Task<User?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
         => dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
 
+    public async Task<IReadOnlyList<User>> ListAllAsync(CancellationToken cancellationToken = default)
+        => await dbContext.Users.AsNoTracking().OrderBy(user => user.Id).ToListAsync(cancellationToken);
+
     public void Add(User user) => dbContext.Users.Add(user);
 }

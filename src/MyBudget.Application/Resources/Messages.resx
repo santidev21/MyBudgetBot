@@ -518,6 +518,31 @@
     <value>Gasto por día · {0}</value>
   </data>
 
+  <data name="MonthlyClosing.Header" xml:space="preserve">
+    <value>📅 Cierre de {0}</value>
+  </data>
+  <data name="MonthlyClosing.TotalSpent" xml:space="preserve">
+    <value>Total gastado: {0}</value>
+  </data>
+  <data name="MonthlyClosing.ExpenseCount" xml:space="preserve">
+    <value>Gastos registrados: {0}</value>
+  </data>
+  <data name="MonthlyClosing.CompleteNote" xml:space="preserve">
+    <value>El período ya está completo; estas cifras no cambian.</value>
+  </data>
+  <data name="MonthlyClosing.ComparisonHeader" xml:space="preserve">
+    <value>Comparación con {0}:</value>
+  </data>
+  <data name="MonthlyClosing.TopCategoriesHeader" xml:space="preserve">
+    <value>Categorías con más gasto:</value>
+  </data>
+  <data name="MonthlyClosing.CategoryLine" xml:space="preserve">
+    <value>{0}: {1} {2} {3}</value>
+  </data>
+  <data name="MonthlyClosing.OverBudget" xml:space="preserve">
+    <value>🚨 Te sobregiraste: gastaste {0} de {1} asignados.</value>
+  </data>
+
   <data name="History.RangeThisMonth" xml:space="preserve">
     <value>Este mes</value>
   </data>

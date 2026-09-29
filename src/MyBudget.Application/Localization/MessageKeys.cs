@@ -188,6 +188,15 @@ public static class MessageKeys
     public const string StatisticsChartCategoriesCaption = "Statistics.ChartCategoriesCaption";
     public const string StatisticsChartDailyCaption = "Statistics.ChartDailyCaption";
 
+    public const string MonthlyClosingHeader = "MonthlyClosing.Header";
+    public const string MonthlyClosingTotalSpent = "MonthlyClosing.TotalSpent";
+    public const string MonthlyClosingExpenseCount = "MonthlyClosing.ExpenseCount";
+    public const string MonthlyClosingCompleteNote = "MonthlyClosing.CompleteNote";
+    public const string MonthlyClosingComparisonHeader = "MonthlyClosing.ComparisonHeader";
+    public const string MonthlyClosingTopCategoriesHeader = "MonthlyClosing.TopCategoriesHeader";
+    public const string MonthlyClosingCategoryLine = "MonthlyClosing.CategoryLine";
+    public const string MonthlyClosingOverBudget = "MonthlyClosing.OverBudget";
+
     public const string HistoryRangeThisMonth = "History.RangeThisMonth";
     public const string HistoryRangeLastMonth = "History.RangeLastMonth";
     public const string HistoryRangeLastThreeMonths = "History.RangeLastThreeMonths";
@@ -407,6 +416,14 @@ public static class MessageKeys
         StatisticsButtonDailyChart,
         StatisticsChartCategoriesCaption,
         StatisticsChartDailyCaption,
+        MonthlyClosingHeader,
+        MonthlyClosingTotalSpent,
+        MonthlyClosingExpenseCount,
+        MonthlyClosingCompleteNote,
+        MonthlyClosingComparisonHeader,
+        MonthlyClosingTopCategoriesHeader,
+        MonthlyClosingCategoryLine,
+        MonthlyClosingOverBudget,
         HistoryRangeThisMonth,
         HistoryRangeLastMonth,
         HistoryRangeLastThreeMonths,

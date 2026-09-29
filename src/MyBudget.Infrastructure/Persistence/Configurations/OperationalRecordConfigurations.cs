@@ -141,3 +141,34 @@ internal sealed class BudgetAlertRecordConfiguration : IEntityTypeConfiguration<
         //   (category_id, user_id) -> categories (id, user_id)
     }
 }
+
+internal sealed class MonthlyClosingRecordConfiguration : IEntityTypeConfiguration<MonthlyClosingRecord>
+{
+    public void Configure(EntityTypeBuilder<MonthlyClosingRecord> builder)
+    {
+        builder.ToTable("monthly_closings", table =>
+        {
+            table.HasCheckConstraint("ck_monthly_closings_month", "month BETWEEN 1 AND 12");
+            table.HasCheckConstraint("ck_monthly_closings_year", "year BETWEEN 2000 AND 2100");
+        });
+
+        builder.HasKey(record => record.Id);
+        builder.Property(record => record.Id).HasColumnName("id").ValueGeneratedNever();
+        builder.Property(record => record.UserId).HasColumnName("user_id").IsRequired();
+        builder.Property(record => record.Year).HasColumnName("year").HasColumnType("smallint").IsRequired();
+        builder.Property(record => record.Month).HasColumnName("month").HasColumnType("smallint").IsRequired();
+        builder.Property(record => record.SentAt).HasColumnName("sent_at").HasColumnType("timestamptz").IsRequired();
+
+        builder
+            .HasIndex(record => new { record.UserId, record.Year, record.Month })
+            .IsUnique()
+            .HasDatabaseName("uq_monthly_closings_user_period");
+
+        // A closing has no meaning without its owner, so deleting the user takes it along.
+        builder
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(record => record.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

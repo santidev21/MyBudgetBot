@@ -6,6 +6,7 @@ using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
 using MyBudget.Telegram.RateLimiting;
 using MyBudget.Telegram.Recurring;
+using MyBudget.Telegram.Reporting;
 using Telegram.Bot;
 
 namespace MyBudget.Telegram;
@@ -49,6 +50,10 @@ public static class DependencyInjection
             services.AddSingleton<RecurringExpenseNotifier>();
             services.AddHostedService<RecurringExpenseScheduler>();
 
+            // Same reasoning for the closing: a report the user cannot receive is not sent.
+            services.AddSingleton<MonthlyClosingNotifier>();
+            services.AddHostedService<MonthlyClosingScheduler>();
+
             // Registered here so polling simply does not run when webhooks are the transport.
             services.AddHostedService<TelegramPollingService>();
         }
@@ -67,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<IConversation, SummaryConversation>();
         services.AddScoped<IConversation, StatisticsConversation>();
         services.AddScoped<IGlobalCallback, ExpenseUndoHandler>();
+        services.AddScoped<IGlobalCallback, ClosingCopyHandler>();
         services.AddScoped<ConversationRouter>();
         services.AddScoped<ITelegramUpdateDispatcher, TelegramUpdateDispatcher>();
 

@@ -102,3 +102,24 @@ internal sealed class BudgetAlertRecord
 
     public DateTimeOffset NotifiedAt { get; set; }
 }
+
+/// <summary>
+/// One month's closing report already sent to a user.
+/// <para>
+/// Operational, not financial: it only makes the delivery exactly-once. The unique key is
+/// <c>(user_id, year, month)</c> over the closed month, so a restart on the first day of the
+/// next month cannot send the same closing twice.
+/// </para>
+/// </summary>
+internal sealed class MonthlyClosingRecord
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    public short Year { get; set; }
+
+    public short Month { get; set; }
+
+    public DateTimeOffset SentAt { get; set; }
+}

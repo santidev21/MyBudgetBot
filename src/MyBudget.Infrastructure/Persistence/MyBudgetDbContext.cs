@@ -32,6 +32,8 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
 
     internal DbSet<BudgetAlertRecord> BudgetAlerts => Set<BudgetAlertRecord>();
 
+    internal DbSet<MonthlyClosingRecord> MonthlyClosings => Set<MonthlyClosingRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
