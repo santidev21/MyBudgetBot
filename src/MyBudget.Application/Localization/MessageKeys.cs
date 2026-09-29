@@ -181,6 +181,10 @@ public static class MessageKeys
     public const string StatisticsChangeFlat = "Statistics.ChangeFlat";
     public const string StatisticsChangeUnknown = "Statistics.ChangeUnknown";
     public const string StatisticsEmpty = "Statistics.Empty";
+    public const string StatisticsButtonCategoriesChart = "Statistics.ButtonCategoriesChart";
+    public const string StatisticsButtonDailyChart = "Statistics.ButtonDailyChart";
+    public const string StatisticsChartCategoriesCaption = "Statistics.ChartCategoriesCaption";
+    public const string StatisticsChartDailyCaption = "Statistics.ChartDailyCaption";
 
     public const string HistoryRangeThisMonth = "History.RangeThisMonth";
     public const string HistoryRangeLastMonth = "History.RangeLastMonth";
@@ -395,6 +399,10 @@ public static class MessageKeys
         StatisticsChangeFlat,
         StatisticsChangeUnknown,
         StatisticsEmpty,
+        StatisticsButtonCategoriesChart,
+        StatisticsButtonDailyChart,
+        StatisticsChartCategoriesCaption,
+        StatisticsChartDailyCaption,
         HistoryRangeThisMonth,
         HistoryRangeLastMonth,
         HistoryRangeLastThreeMonths,

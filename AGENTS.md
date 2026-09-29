@@ -226,6 +226,18 @@ Database and application ports are never published in production.
 - **`ApplyDueAsync` loads categories per user to label the notification at read time.** The
   label is not stored on the rule or the expense: renaming a category still updates how old
   recurring expenses are reported, like every other report.
+- **The charts are hand-drawn on purpose.** A package like SkiaSharp would drag libfontconfig
+  and a TTF into the runtime image; the reporting images are rectangles and digits, so the
+  renderer is `RgbCanvas` + a 5x7 bitmap font + a small PNG encoder over `ZLibStream`. It stays
+  deterministic and dependency-free in the container, in CI and on a laptop.
+- **A glyph the bitmap font does not know renders blank.** Only digits, `.`, `,`, `%`, `-` and
+  space exist. Category and month names belong in the caption, where Telegram renders real text
+  with accents; never move user text into the image.
+- **The chart callback keeps the conversation state and payload.** It reuses the period on
+  screen and returns the same navigation plus chart buttons, so a photo is as navigable as the
+  text screen and a replayed callback cannot act on a stale month.
+- **A chart is never the only place a number appears.** The text screens carry every exact
+  value; the image is a comparison. An empty month therefore offers no chart buttons at all.
 
 ## Status and handoff
 
@@ -242,19 +254,19 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 6  Category matching and keyword learning   <-- done
 [x] Phase 7  Summary and statistics                   <-- done
 [x] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- done
-[x] Phase 9  Recurring expenses (the chosen optional piece)   <-- done
-[ ] Phase 9+ Optional: charts, CSV export/import, scheduled summaries   <-- only with a real need
+[x] Phase 9  Recurring expenses and spending charts (the chosen optional pieces)   <-- done
+[ ] Phase 9+ Optional: CSV export/import, scheduled summaries   <-- only with a real need
 ```
 
 **Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
 account (in production over the webhook, in development over polling) it manages categories and
 monthly budgets, records expenses both guided and compact, suggests the category from the
 description, lets the user teach it a keyword, edits and deletes expenses, undoes a
-registration, manages monthly recurring rules that the scheduler applies on their due date, and
-reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and the month's statistics
-(`📈 Estadísticas`). The nightly backup is verified by a real restore drill and the deploy
-refuses to run without a verified dump and a clean checkout. 750 tests green, `dotnet build`
-with zero warnings, `dotnet format` clean.
+registration, manages monthly recurring rules that the scheduler applies on their due date,
+draws the month's spending as a chart, and reports the month (`📊 Resumen`), the range history
+(`📋 Gastos`) and the month's statistics (`📈 Estadísticas`). The nightly backup is verified by
+a real restore drill and the deploy refuses to run without a verified dump and a clean
+checkout. 762 tests green, `dotnet build` with zero warnings, `dotnet format` clean.
 
 ### Phase 8 delivered — hardening
 
@@ -301,8 +313,25 @@ The chosen optional piece. All exercised through Telegram conversations:
   delivery failure is logged, never propagated: the expenses are already committed.
 
 Deferred deliberately: end dates are supported by the domain but not offered by the flow, and
-weekly/yearly frequencies would each need their own anchor rule. The other optional pieces
-(charts, CSV, scheduled summaries) still start only with a real need.
+weekly/yearly frequencies would each need their own anchor rule.
+
+### Charts delivered — spending images
+
+- The statistics screen grows two buttons, `📊 Categorías` and `📅 Por día`, shown only when
+  the month has spending. Each sends a PNG with the month's caption and the same navigation and
+  chart buttons attached, so moving months keeps working from the image.
+- `SpendingChartRenderer` is dependency-free: an `RgbCanvas`, a 5x7 `BitmapFont` for digits and
+  separators, and a minimal `PngEncoder` over the BCL's `ZLibStream`. No imaging package, no
+  native library, no system font, so the same pixels occur in the Debian container, in CI and
+  on a laptop. The PNG format was validated against `file(1)` and an independent decoder.
+- Category names, month names and totals stay in the caption; the image carries only the visual
+  comparison and the amount labels. That is what keeps the font tiny: a glyph the font does not
+  know is simply blank, and the exact data is never only in the image.
+- The presentation layer gained photo support: `BotResponse.WithPhoto` and a `SendPhoto` branch
+  in `TelegramSender`, sharing the same HTML escaping and 429 retry policy as text.
+
+The remaining optional pieces (CSV export/import, scheduled summaries) still start only with a
+real need.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -402,7 +431,7 @@ walk without gaps or duplicates).
 
 ### Prompt for the next session — remaining optional pieces
 
-Recurring expenses are done. Charts, CSV and scheduled summaries start only if there is a
+Recurring expenses and charts are done. CSV and scheduled summaries start only if there is a
 real need; nothing in them is a prerequisite for a working bot. Paste this if you decide to
 build one:
 
@@ -415,15 +444,16 @@ build one:
 > 2. Mira `git log --oneline`.
 > 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
 >
-> Contexto: fases 0–9 completas, 750 tests verdes, build sin warnings, `dotnet format` limpio.
+> Contexto: fases 0–9 completas, 762 tests verdes, build sin warnings, `dotnet format` limpio.
 > El bot registra gastos, aprende keywords, tiene resumen/estadísticas/historial, gestiona
-> reglas recurrentes que el scheduler aplica en su fecha, backups nocturnos verificados con
-> restore real y deploy reproducible. `.env` local con bot de DEV en polling, base en
-> `127.0.0.1:5435`; el VPS con webhook está desplegado.
+> reglas recurrentes que el scheduler aplica en su fecha, dibuja gráficos de gasto sin
+> dependencias nativas, backups nocturnos verificados con restore real y deploy reproducible.
+> `.env` local con bot de DEV en polling, base en `127.0.0.1:5435`; el VPS con webhook está
+> desplegado.
 >
-> Haz **una** de las piezas opcionales que quedan: gráficos, exportación/importación CSV o
-> resúmenes programados. Elige la que tenga una necesidad real, no todas. Alcance de cada
-> opción en `docs/TECHNICAL-DESIGN.md` §12.
+> Haz **una** de las piezas opcionales que quedan: exportación/importación CSV o resúmenes
+> programados. Elige la que tenga una necesidad real, no todas. Alcance de cada opción en
+> `docs/TECHNICAL-DESIGN.md` §12.
 >
 > Reglas que no se rompen: dinero `long` exacto; `ExpenseDate` es `DateOnly` en hora local;
 > ownership con `userId` primero y FKs compuestas; la historia no se borra (desactivar); nada de

@@ -499,6 +499,18 @@
   <data name="Statistics.Empty" xml:space="preserve">
     <value>No hay gastos registrados en este mes.</value>
   </data>
+  <data name="Statistics.ButtonCategoriesChart" xml:space="preserve">
+    <value>📊 Categorías</value>
+  </data>
+  <data name="Statistics.ButtonDailyChart" xml:space="preserve">
+    <value>📅 Por día</value>
+  </data>
+  <data name="Statistics.ChartCategoriesCaption" xml:space="preserve">
+    <value>Gasto por categoría · {0}</value>
+  </data>
+  <data name="Statistics.ChartDailyCaption" xml:space="preserve">
+    <value>Gasto por día · {0}</value>
+  </data>
 
   <data name="History.RangeThisMonth" xml:space="preserve">
     <value>Este mes</value>

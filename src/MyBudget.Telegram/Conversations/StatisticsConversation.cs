@@ -3,6 +3,7 @@ using MyBudget.Application.Localization;
 using MyBudget.Application.Money;
 using MyBudget.Application.Reporting;
 using MyBudget.Domain.Budgets;
+using MyBudget.Telegram.Charts;
 using MyBudget.Telegram.Presentation;
 
 namespace MyBudget.Telegram.Conversations;
@@ -29,6 +30,8 @@ internal sealed class StatisticsConversation(
     private const string PreviousCallback = CallbackPrefix + "prev";
     private const string NextCallback = CallbackPrefix + "next";
     private const string CurrentCallback = CallbackPrefix + "current";
+    private const string ChartCategoriesCallback = CallbackPrefix + "chart-cat";
+    private const string ChartDailyCallback = CallbackPrefix + "chart-daily";
 
     public string Name => ConversationName;
 
@@ -40,11 +43,18 @@ internal sealed class StatisticsConversation(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken) =>
         BuildAsync(context, ReportingPayload.Parse(context.Conversation?.Payload), cancellationToken);
 
-    public Task<ConversationTurn> HandleCallbackAsync(
+    public async Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
     {
         var payload = ReportingPayload.Parse(context.Conversation?.Payload);
         var current = payload.Period ?? CurrentPeriod(context);
+
+        // The charts reuse the period on screen, so the buttons keep working after a photo.
+        if (callback.Data is ChartCategoriesCallback or ChartDailyCallback)
+        {
+            return await BuildChartAsync(
+                context, current, payload, callback.Data == ChartCategoriesCallback, cancellationToken);
+        }
 
         var target = callback.Data switch
         {
@@ -53,7 +63,7 @@ internal sealed class StatisticsConversation(
             _ => current,
         };
 
-        return BuildAsync(context, payload.WithPeriod(target), cancellationToken);
+        return await BuildAsync(context, payload.WithPeriod(target), cancellationToken);
     }
 
     private async Task<ConversationTurn> BuildAsync(
@@ -64,12 +74,9 @@ internal sealed class StatisticsConversation(
         var statistics = await reports.GetStatisticsAsync(
             context.User.Id, period, Today(context), cancellationToken);
 
-        var navigation = MonthNavigation.Build(
-            messages, language, period, PreviousCallback, CurrentCallback, NextCallback);
-
         var turn = new ConversationTurn(
         [
-            BotResponse.Message(Render(context, statistics), BotKeyboard.Inline([.. navigation])),
+            BotResponse.Message(Render(context, statistics), Keyboard(context, statistics, period)),
         ])
         {
             NextState = State,
@@ -77,6 +84,86 @@ internal sealed class StatisticsConversation(
         };
 
         return turn;
+    }
+
+    /// <summary>
+    /// Renders one chart for the period on screen and sends it with the same navigation, so
+    /// the user can move months and ask for another chart without going back.
+    /// </summary>
+    private async Task<ConversationTurn> BuildChartAsync(
+        ConversationContext context,
+        MonthPeriod period,
+        ReportingPayload payload,
+        bool byCategory,
+        CancellationToken cancellationToken)
+    {
+        var statistics = await reports.GetStatisticsAsync(
+            context.User.Id, period, Today(context), cancellationToken);
+
+        if (statistics.Total == 0)
+        {
+            // Nothing to draw: the text screen already says the month is empty.
+            return await BuildAsync(context, payload.WithPeriod(period), cancellationToken);
+        }
+
+        var entries = byCategory
+            ? statistics.Categories
+                .Take(SpendingChartRenderer.MaxHorizontalBars)
+                .Select(category => new ChartEntry(
+                    category.Spent, moneyFormatter.Format(category.Spent, context.User.Currency)))
+                .ToList()
+            : statistics.Daily
+                .Select(day => new ChartEntry(
+                    day.Total,
+                    day.Date.Day.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+                .ToList();
+
+        var png = byCategory
+            ? SpendingChartRenderer.HorizontalBars(entries)
+            : SpendingChartRenderer.VerticalBars(entries);
+
+        var caption = messages.Get(
+            context.Language,
+            byCategory
+                ? MessageKeys.StatisticsChartCategoriesCaption
+                : MessageKeys.StatisticsChartDailyCaption,
+            MonthLabel(context, period));
+
+        return new ConversationTurn(
+        [
+            BotResponse.WithPhoto(png, caption, Keyboard(context, statistics, period)),
+        ])
+        {
+            NextState = State,
+            NextPayload = payload.WithPeriod(period).Serialize(),
+        };
+    }
+
+    /// <summary>
+    /// The navigation row plus the chart buttons. A month with no spending has nothing to
+    /// draw, so it shows only the navigation instead of buttons that lead to an empty image.
+    /// </summary>
+    private BotKeyboard Keyboard(ConversationContext context, PeriodStatistics statistics, MonthPeriod period)
+    {
+        var navigation = MonthNavigation.Build(
+            messages, context.Language, period, PreviousCallback, CurrentCallback, NextCallback);
+
+        var rows = new List<BotButton[]> { navigation.ToArray() };
+
+        if (statistics.Total > 0)
+        {
+            rows.Add(
+            [
+                new BotButton(
+                    messages.Get(context.Language, MessageKeys.StatisticsButtonCategoriesChart),
+                    ChartCategoriesCallback),
+                new BotButton(
+                    messages.Get(context.Language, MessageKeys.StatisticsButtonDailyChart),
+                    ChartDailyCallback),
+            ]);
+        }
+
+        return BotKeyboard.Inline([.. rows]);
     }
 
     private string Render(ConversationContext context, PeriodStatistics statistics)

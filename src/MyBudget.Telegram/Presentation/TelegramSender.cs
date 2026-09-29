@@ -50,12 +50,27 @@ internal sealed class TelegramSender(
         {
             try
             {
-                await botClient.SendMessage(
-                    chatId,
-                    text,
-                    parseMode: ParseMode.Html,
-                    replyMarkup: keyboard,
-                    cancellationToken: cancellationToken);
+                if (response.Photo is { } photo)
+                {
+                    using var stream = new MemoryStream(photo);
+                    await botClient.SendPhoto(
+                        chatId,
+                        InputFile.FromStream(stream, "chart.png"),
+                        text,
+                        parseMode: ParseMode.Html,
+                        replyMarkup: keyboard,
+                        cancellationToken: cancellationToken);
+                }
+                else
+                {
+                    await botClient.SendMessage(
+                        chatId,
+                        text,
+                        parseMode: ParseMode.Html,
+                        replyMarkup: keyboard,
+                        cancellationToken: cancellationToken);
+                }
+
                 return;
             }
             catch (ApiRequestException exception)

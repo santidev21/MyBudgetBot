@@ -469,6 +469,9 @@ test proves the ambient culture is ignored.
     a real expense, dated in the user's calendar, and tells the user what it registered.
     Deleting a rule never touches the expenses it already produced; the day of month clamps to
     the last day of a shorter month.
+12. **Charts** — `📈 Estadísticas` offers `📊 Categorías` and `📅 Por día` when the month has
+    spending. Each renders a PNG in the presentation layer with no native dependency, sends it
+    with the month's caption, and keeps the period navigation attached.
 
 ## 12. MVP implementation phases
 
@@ -483,7 +486,7 @@ test proves the ambient culture is ignored.
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
 | **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout — **done** |
-| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Recurring expenses **done**; the rest starts only with a real need |
+| **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Recurring expenses and charts **done**; CSV and scheduled summaries start only with a real need |
 
 ## 13. Important edge cases
 
@@ -641,12 +644,16 @@ conflict prompt, architecture and repository contract tests, the summary, statis
 date-range history messages (asserted verbatim), the period queries against real PostgreSQL
 (grouped sums, user isolation, the range boundary and a full keyset walk), the per-user inbound
 throttle (budget, sliding window, one notice per window, independent budgets) and the outbound
-429 retry policy (fallbacks and the cap). 750 tests, all green.
+429 retry policy (fallbacks and the cap). 762 tests, all green.
 
 Recurring expenses added: the domain calendar arithmetic (month-end clamping, catch-up,
 inclusive end dates and the forward-only generation marker), rule persistence with the
 composite ownership foreign key, the idempotent application pass in each user's time zone,
 the management conversation and the notification message.
+
+Charts added: the dependency-free renderer (canvas, bitmap font, PNG encoder over zlib), the
+proportional bar geometry, the image-data round trip, and the statistics flow that offers,
+sends and keeps navigating the chart.
 
 The restore drill is operational rather than unit-tested: it ran against the local stack on
 2026-09-28 and its output and the corrupt-dump failure path are recorded in
