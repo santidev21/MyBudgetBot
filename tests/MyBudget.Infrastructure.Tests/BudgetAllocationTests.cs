@@ -7,11 +7,11 @@ using MyBudget.Infrastructure.Persistence.Repositories;
 namespace MyBudget.Infrastructure.Tests;
 
 /// <summary>
-/// Monthly allocations through the real service and repositories.
+/// Budget allocations through the real service and repositories.
 /// <para>
 /// The product rules live in the application layer, so this is where they are checked against a
-/// real database: past months are refused, deactivating keeps history, and copying a month
-/// produces independent rows rather than a shared reference.
+/// real database: past months are refused, a recurring default fills months that have no row of
+/// their own, and deactivating keeps history.
 /// </para>
 /// </summary>
 public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTestBase(fixture)
@@ -35,7 +35,7 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
         await context.SaveChangesAsync();
 
         var result = await BuildService(context).SetAllocationAsync(
-            user.Id, September, category.Id, 800_000, Today);
+            user.Id, September, category.Id, 800_000, BudgetScope.Month, Today);
 
         result.Saved.Should().BeTrue();
 
@@ -55,8 +55,8 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
         await context.SaveChangesAsync();
 
         var service = BuildService(context);
-        await service.SetAllocationAsync(user.Id, September, category.Id, 800_000, Today);
-        await service.SetAllocationAsync(user.Id, September, category.Id, 900_000, Today);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 800_000, BudgetScope.Month, Today);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 900_000, BudgetScope.Month, Today);
 
         await using var verification = CreateContext();
         var stored = await new BudgetRepository(verification).FindByPeriodAsync(user.Id, September);
@@ -64,47 +64,42 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
     }
 
     [Fact]
-    public async Task Copying_the_previous_month_produces_independent_rows()
+    public async Task Assigning_to_all_months_persists_the_default_and_clears_the_override()
     {
         await using var context = CreateContext();
         var user = TestData.NewUser();
-        var market = TestData.NewCategory(user.Id, "Mercado");
-        var transport = TestData.NewCategory(user.Id, "Transporte");
+        var category = TestData.NewCategory(user.Id, "Mercado");
         context.Users.Add(user);
-        context.Categories.AddRange(market, transport);
+        context.Categories.Add(category);
         await context.SaveChangesAsync();
 
         var service = BuildService(context);
-        await service.SetAllocationAsync(user.Id, September, market.Id, 500_000, Today);
-        await service.SetAllocationAsync(user.Id, September, transport.Id, 200_000, Today);
-
-        var copied = await service.CopyPreviousMonthAsync(user.Id, October, Today);
-        copied.Status.Should().Be(BudgetCopyStatus.Copied);
-        copied.Budget!.TotalAllocated.Should().Be(700_000);
-
-        // Editing the copy must not touch the month it was copied from.
-        await service.SetAllocationAsync(user.Id, October, market.Id, 1_000_000, Today);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 500_000, BudgetScope.Month, Today);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 900_000, BudgetScope.AllMonths, Today);
 
         await using var verification = CreateContext();
-        var budgets = new BudgetRepository(verification);
-        (await budgets.FindByPeriodAsync(user.Id, September))!.TotalAllocated.Should().Be(700_000);
-        (await budgets.FindByPeriodAsync(user.Id, October))!.TotalAllocated.Should().Be(1_200_000);
+        var repository = new BudgetRepository(verification);
+        (await repository.FindByPeriodAsync(user.Id, September))!.Allocations.Should().BeEmpty();
+        (await repository.FindDefaultAsync(user.Id, category.Id))!.Amount.Should().Be(900_000);
     }
 
     [Fact]
-    public async Task Copying_without_a_previous_month_writes_nothing()
+    public async Task A_recurring_default_fills_a_later_month_that_has_no_row()
     {
         await using var context = CreateContext();
         var user = TestData.NewUser();
+        var category = TestData.NewCategory(user.Id, "Mercado");
         context.Users.Add(user);
+        context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        var result = await BuildService(context).CopyPreviousMonthAsync(user.Id, October, Today);
+        var service = BuildService(context);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 700_000, BudgetScope.AllMonths, Today);
 
-        result.Status.Should().Be(BudgetCopyStatus.NoPreviousBudget);
+        var october = await service.GetMonthAsync(user.Id, October);
 
-        await using var verification = CreateContext();
-        (await new BudgetRepository(verification).FindByPeriodAsync(user.Id, October)).Should().BeNull();
+        october.TotalAllocated.Should().Be(700_000);
+        october.Lines.Should().ContainSingle().Which.IsRecurring.Should().BeTrue();
     }
 
     [Fact]
@@ -118,7 +113,7 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
         await context.SaveChangesAsync();
 
         var result = await BuildService(context).SetAllocationAsync(
-            user.Id, August, category.Id, 100_000, Today);
+            user.Id, August, category.Id, 100_000, BudgetScope.Month, Today);
 
         result.Status.Should().Be(BudgetWriteStatus.PastMonth);
 
@@ -137,7 +132,7 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
         await context.SaveChangesAsync();
 
         var service = BuildService(context);
-        await service.SetAllocationAsync(user.Id, September, category.Id, 250_000, Today);
+        await service.SetAllocationAsync(user.Id, September, category.Id, 250_000, BudgetScope.Month, Today);
 
         category.Deactivate();
         await context.SaveChangesAsync();
@@ -161,7 +156,7 @@ public sealed class BudgetAllocationTests(DatabaseFixture fixture) : DatabaseTes
         await context.SaveChangesAsync();
 
         var result = await BuildService(context).SetAllocationAsync(
-            owner.Id, September, strangerCategory.Id, 100_000, Today);
+            owner.Id, September, strangerCategory.Id, 100_000, BudgetScope.Month, Today);
 
         result.Status.Should().Be(BudgetWriteStatus.CategoryNotFound);
     }

@@ -23,6 +23,10 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(user => user.Currency).HasColumnName("currency").HasMaxLength(3).IsFixedLength().IsRequired();
         builder.Property(user => user.TimeZone).HasColumnName("time_zone").HasMaxLength(64).IsRequired();
         builder.Property(user => user.Language).HasColumnName("language").HasMaxLength(5).IsRequired();
+        builder.Property(user => user.DailyReminderEnabled)
+            .HasColumnName("daily_reminder_enabled")
+            .HasDefaultValue(true)
+            .IsRequired();
         builder.Property(user => user.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
         builder.Property(user => user.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz").IsRequired();
 

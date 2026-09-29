@@ -10,6 +10,7 @@ using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
 using MyBudget.Application.Recurring;
+using MyBudget.Application.Reminders;
 using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 
@@ -61,6 +62,7 @@ public static class DependencyInjection
         services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IMonthlyClosingService, MonthlyClosingService>();
+        services.AddScoped<IDailyReminderService, DailyReminderService>();
 
         return services;
     }

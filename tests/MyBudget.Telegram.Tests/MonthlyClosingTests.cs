@@ -73,9 +73,7 @@ public sealed class MonthlyClosingTests
             🚨 Te sobregiraste: gastaste $1.500.000 de $1.000.000 asignados.
             """);
 
-        var button = message.Keyboard!.Rows.SelectMany(row => row).Should().ContainSingle().Subject;
-        button.Text.Should().Be("📋 Copiar mes anterior");
-        button.CallbackData.Should().Be("v1|closingcopy|2026|8");
+        message.Keyboard.Should().BeNull("the closing is text only now that budgets recur");
     }
 
     [Fact]

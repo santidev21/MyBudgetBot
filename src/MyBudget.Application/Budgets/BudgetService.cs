@@ -9,15 +9,27 @@ public sealed record MonthlyBudgetLine(
     string CategoryName,
     string Icon,
     long Amount,
-    bool IsActive);
+    bool IsActive,
+    bool IsRecurring = false);
 
 /// <summary>
-/// A month's budget: the allocations historically recorded for that month, with the total
-/// derived. A month that was never created simply lists its categories at zero.
+/// A month's budget: each category's effective allocation — the month's own row if it has one,
+/// otherwise the recurring default — with the total derived. A month that was never created and
+/// has no default lists its categories at zero.
 /// </summary>
 public sealed record MonthlyBudgetView(MonthPeriod Period, IReadOnlyList<MonthlyBudgetLine> Lines)
 {
     public long TotalAllocated => Lines.Sum(line => line.Amount);
+}
+
+/// <summary>Whether an assignment applies to one month or becomes the recurring default.</summary>
+public enum BudgetScope
+{
+    /// <summary>An override for the given month only; other months keep the default.</summary>
+    Month,
+
+    /// <summary>The recurring amount every month from now on, including the given one.</summary>
+    AllMonths,
 }
 
 public enum BudgetWriteStatus
@@ -46,19 +58,6 @@ public sealed record BudgetWriteResult(BudgetWriteStatus Status, MonthlyBudget? 
     public static BudgetWriteResult CategoryInactive() => new(BudgetWriteStatus.CategoryInactive);
 }
 
-public enum BudgetCopyStatus
-{
-    Copied,
-
-    /// <summary>The month to copy is before the current month; past months are immutable.</summary>
-    PastMonth,
-
-    /// <summary>The previous month has no budget at all, so there is nothing to copy.</summary>
-    NoPreviousBudget,
-}
-
-public sealed record BudgetCopyResult(BudgetCopyStatus Status, MonthlyBudget? Budget = null);
-
 /// <summary>
 /// Monthly budget management, always for the current or a future month.
 /// <para>
@@ -71,27 +70,28 @@ public sealed record BudgetCopyResult(BudgetCopyStatus Status, MonthlyBudget? Bu
 public interface IBudgetService
 {
     /// <summary>
-    /// The allocations recorded for a month, together with every active category. A category
+    /// The effective allocations for a month, together with every active category. A category
     /// that was deactivated still appears when it holds an allocation for that month, because
     /// old months must keep rendering as they did.
     /// </summary>
     Task<MonthlyBudgetView> GetMonthAsync(
         Guid userId, MonthPeriod period, CancellationToken cancellationToken = default);
 
+    /// <summary>True when the user already has at least one recurring allocation.</summary>
+    Task<bool> HasDefaultsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Assigns an amount to a category. <see cref="BudgetScope.Month"/> writes only that month's
+    /// override; <see cref="BudgetScope.AllMonths"/> makes it the recurring default and clears
+    /// the month's own override so the new default shows there too.
+    /// </summary>
     Task<BudgetWriteResult> SetAllocationAsync(
-        Guid userId, MonthPeriod period, Guid categoryId, long amount, DateOnly today,
-        CancellationToken cancellationToken = default);
+        Guid userId, MonthPeriod period, Guid categoryId, long amount, BudgetScope scope,
+        DateOnly today, CancellationToken cancellationToken = default);
 
     Task<BudgetWriteResult> RemoveAllocationAsync(
         Guid userId, MonthPeriod period, Guid categoryId, DateOnly today,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Copies every allocation of the previous month into this one. Explicitly requested by the
-    /// user; nothing is ever copied automatically.
-    /// </summary>
-    Task<BudgetCopyResult> CopyPreviousMonthAsync(
-        Guid userId, MonthPeriod period, DateOnly today, CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -104,16 +104,13 @@ public sealed class BudgetService(
         Guid userId, MonthPeriod period, CancellationToken cancellationToken = default)
     {
         var budget = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
+        var defaults = await budgets.ListDefaultsAsync(userId, cancellationToken) ?? [];
         var allCategories = await categories.ListAsync(userId, includeInactive: true, cancellationToken);
 
-        var amounts = new Dictionary<Guid, long>();
-        if (budget is not null)
-        {
-            foreach (var allocation in budget.Allocations)
-            {
-                amounts[allocation.CategoryId] = allocation.Amount;
-            }
-        }
+        var amounts = EffectiveBudget.Merge(period, budget?.Allocations, defaults);
+        var overridden = budget?.Allocations
+            .Select(allocation => allocation.CategoryId)
+            .ToHashSet() ?? [];
 
         // Active categories always show, so the user can see what is still unfunded. An inactive
         // category only shows when this month actually allocated to it.
@@ -124,62 +121,20 @@ public sealed class BudgetService(
                 category.Name,
                 category.Icon,
                 amounts.GetValueOrDefault(category.Id),
-                category.IsActive))
+                category.IsActive,
+                amounts.ContainsKey(category.Id) && !overridden.Contains(category.Id)))
             .ToList();
 
         return new MonthlyBudgetView(period, lines);
     }
 
-    public Task<BudgetWriteResult> SetAllocationAsync(
-        Guid userId, MonthPeriod period, Guid categoryId, long amount, DateOnly today,
-        CancellationToken cancellationToken = default)
-        => WriteAsync(
-            userId, period, categoryId, today,
-            budget => budget.SetAllocation(categoryId, amount),
-            cancellationToken);
+    public async Task<bool> HasDefaultsAsync(
+        Guid userId, CancellationToken cancellationToken = default) =>
+        (await budgets.ListDefaultsAsync(userId, cancellationToken) ?? []).Count > 0;
 
-    public Task<BudgetWriteResult> RemoveAllocationAsync(
-        Guid userId, MonthPeriod period, Guid categoryId, DateOnly today,
-        CancellationToken cancellationToken = default)
-        => WriteAsync(
-            userId, period, categoryId, today,
-            budget => budget.RemoveAllocation(categoryId),
-            cancellationToken);
-
-    public async Task<BudgetCopyResult> CopyPreviousMonthAsync(
-        Guid userId, MonthPeriod period, DateOnly today, CancellationToken cancellationToken = default)
-    {
-        if (IsPast(period, today))
-        {
-            return new BudgetCopyResult(BudgetCopyStatus.PastMonth);
-        }
-
-        var previous = await budgets.FindByPeriodAsync(userId, period.Previous, cancellationToken);
-        if (previous is null || previous.Allocations.Count == 0)
-        {
-            return new BudgetCopyResult(BudgetCopyStatus.NoPreviousBudget);
-        }
-
-        var target = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
-        if (target is null)
-        {
-            target = new MonthlyBudget(userId, period);
-            budgets.Add(target);
-        }
-
-        target.CopyAllocationsFrom(previous);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new BudgetCopyResult(BudgetCopyStatus.Copied, target);
-    }
-
-    private async Task<BudgetWriteResult> WriteAsync(
-        Guid userId,
-        MonthPeriod period,
-        Guid categoryId,
-        DateOnly today,
-        Action<MonthlyBudget> apply,
-        CancellationToken cancellationToken)
+    public async Task<BudgetWriteResult> SetAllocationAsync(
+        Guid userId, MonthPeriod period, Guid categoryId, long amount, BudgetScope scope,
+        DateOnly today, CancellationToken cancellationToken = default)
     {
         if (IsPast(period, today))
         {
@@ -197,6 +152,28 @@ public sealed class BudgetService(
             return BudgetWriteResult.CategoryInactive();
         }
 
+        if (scope == BudgetScope.AllMonths)
+        {
+            var existingDefault = await budgets.FindDefaultAsync(userId, categoryId, cancellationToken);
+            if (existingDefault is null)
+            {
+                budgets.AddDefault(new BudgetDefault(userId, categoryId, period, amount));
+            }
+            else
+            {
+                // Editing keeps the month the default took effect: it must not start applying
+                // to months it never covered.
+                existingDefault.ChangeAmount(amount);
+            }
+
+            // "Every month" includes this one: drop its override so the new default shows.
+            var month = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
+            month?.RemoveAllocation(categoryId);
+
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            return BudgetWriteResult.Ok(month);
+        }
+
         var budget = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
         if (budget is null)
         {
@@ -204,7 +181,28 @@ public sealed class BudgetService(
             budgets.Add(budget);
         }
 
-        apply(budget);
+        budget.SetAllocation(categoryId, amount);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return BudgetWriteResult.Ok(budget);
+    }
+
+    public async Task<BudgetWriteResult> RemoveAllocationAsync(
+        Guid userId, MonthPeriod period, Guid categoryId, DateOnly today,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsPast(period, today))
+        {
+            return BudgetWriteResult.PastMonth();
+        }
+
+        var budget = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
+        if (budget is null)
+        {
+            return BudgetWriteResult.Ok(null);
+        }
+
+        budget.RemoveAllocation(categoryId);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return BudgetWriteResult.Ok(budget);

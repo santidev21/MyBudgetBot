@@ -47,6 +47,15 @@ internal sealed class SummaryConversation(
     public Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
     {
+        if (callback.Data == CategoryDetailConversation.OpenCallback)
+        {
+            // The category detail is its own flow; the summary hands it the turn.
+            return Task.FromResult(new ConversationTurn([])
+            {
+                HandoffConversation = CategoryDetailConversation.ConversationName,
+            });
+        }
+
         var payload = ReportingPayload.Parse(context.Conversation?.Payload);
         var current = payload.Period ?? CurrentPeriod(context);
 
@@ -73,7 +82,15 @@ internal sealed class SummaryConversation(
 
         var turn = new ConversationTurn(
         [
-            BotResponse.Message(Render(context, summary), BotKeyboard.Inline([.. navigation])),
+            BotResponse.Message(
+                Render(context, summary),
+                BotKeyboard.Inline(
+                [
+                    [new BotButton(
+                        messages.Get(language, MessageKeys.SummaryButtonByCategory),
+                        CategoryDetailConversation.OpenCallback)],
+                    [.. navigation],
+                ])),
         ])
         {
             NextState = State,
@@ -104,6 +121,12 @@ internal sealed class SummaryConversation(
                 MessageKeys.SummaryTotalBudget,
                 moneyFormatter.Format(summary.TotalAllocated, currency),
                 moneyFormatter.FormatPercentage(summary.UsagePercentage ?? 0m)));
+
+            var remaining = summary.TotalAllocated - summary.TotalSpent;
+            lines.Add(remaining >= 0
+                ? messages.Get(language, MessageKeys.SummaryRemaining, moneyFormatter.Format(remaining, currency))
+                : messages.Get(
+                    language, MessageKeys.SummaryOverspent, moneyFormatter.Format(-remaining, currency)));
         }
 
         var display = summary.Lines

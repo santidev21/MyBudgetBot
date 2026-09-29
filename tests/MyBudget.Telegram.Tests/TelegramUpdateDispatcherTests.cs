@@ -140,7 +140,7 @@ public sealed class TelegramUpdateDispatcherTests
     }
 
     [Fact]
-    public async Task A_menu_tap_is_acknowledged_as_not_ready_yet()
+    public async Task A_menu_tap_opens_the_settings_screen()
     {
         var harness = TelegramHarness.Build();
         var label = harness.Messages.Get("es", MyBudget.Application.Localization.MessageKeys.MenuSettings);
@@ -148,7 +148,7 @@ public sealed class TelegramUpdateDispatcherTests
         await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(1, 999, label));
 
         harness.Sender.Messages.Should().ContainSingle()
-            .Which.Text.Should().Contain("todavía no está lista");
+            .Which.Text.Should().Contain("Configuración");
     }
 
     [Fact]

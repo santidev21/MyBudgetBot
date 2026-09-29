@@ -157,15 +157,37 @@ production.
   day. The scheduler is registered only with a bot token, first pass delayed one minute.
 - The monthly closing is claimed, not read: `monthly_closings` is inserted with `ON CONFLICT DO
   NOTHING` on `(user_id, year, month)`, before the message, so a restart cannot repeat it.
-- "Day 1" is the user's local calendar day via `IUserLocalDate`, and the copy-budget button
-  carries only the closed month (`v1|closingcopy|YYYY|M`) and re-reads through the service.
+- The closing fires on the last local day from 23:59 and falls back to the first local day; both
+  resolve to the same `closedPeriod`, which is what keeps the marker exactly-once. The
+  copy-budget button was removed when budgets became recurring.
 - A closing with no spending and no allocation is skipped and its marker stays unspent: a
   notification feature that talks about nothing is a notification feature that gets muted.
+- The daily reminder and the closing share `ScheduledNotificationsScheduler` (every minute,
+  only with a bot token). The reminder is skipped before the user's local 21:00 and when an
+  expense already exists that local day; it claims `("daily", local day)` in
+  `reminder_deliveries` before sending, so frequent ticks are safe.
 - Adding a menu section touches `MainMenu.ActionKeys`, the keyboard rows, the menu test and the
   router mapping.
 - Charts are hand-drawn (`RgbCanvas` + 5x7 bitmap font + PNG over `ZLibStream`) to avoid native
   dependencies; unknown glyphs render blank, so names stay in the caption, and the text screens
   always carry the exact numbers.
+
+**Settings, budgets and routing**
+
+- Erasing the user runs inside the turn's ambient transaction: `UserWorkLock` already opens one,
+  so `IUserDataEraser` must reuse `Database.CurrentTransaction` instead of beginning a second.
+- `ConversationTurn.UserRemoved` tells the dispatcher to settle the inbox with a `null` owner;
+  otherwise `CompleteAsync` would write a `user_id` that no longer exists and hit the FK.
+- The recurring budget is a fallback, not a copy: `budget_defaults.effective_from` stops a default
+  from appearing in months before it existed, and a month's own row always wins.
+- A row referencing a category must be saved after the category exists in the same context: EF
+  does not model the composite `(category_id, user_id)` foreign key, so `budget_defaults` (like
+  `budget_alerts`) needs its own `SaveChanges`.
+- Cross-flow actions use `ConversationTurn.HandoffConversation` + `IHandoffConversation`
+  (`ResolveHandoffAsync`); that is how the category breakdown opens an expense in the expenses
+  flow without duplicating edit/delete.
+- A nullable parameter inside `FromSql` fails with PostgreSQL `42P18`; filter with a boolean flag
+  (`({hasCategory} = FALSE OR category_id = {category})`) like the keyset cursor does.
 
 ## Status and handoff
 
@@ -180,15 +202,20 @@ production.
 | 7 | Summary, range history and statistics | done |
 | 8 | Hardening: verified backups, runbook, rate limits, deploy | done |
 | 9 | Recurring expenses, spending charts, budget alerts, scheduled summaries | done |
+| 10 | Settings (data erasure, reminder switch), recurring budget, per-category breakdown, numbered category chart, daily reminder, 23:59 monthly closing | done |
 
 Verified end to end through Telegram: categories and budgets; guided and compact expenses with
 suggestion, keyword learning, edit, delete and undo; recurring rules applied by a scheduler; 80 %
 and 100 % budget alerts; month summary, range history, statistics and category/daily charts;
-the closing of the previous month sent on the user's first local day; verified nightly backups;
-reproducible deploy. **801 tests green**, build with zero warnings, `dotnet format` clean.
+the closing of the last month sent at 23:59 on the user's last local day, with the first local
+day as fallback; verified nightly backups;
+reproducible deploy. Settings erases everything and switches the daily reminder; a budget set
+once recurs every month with per-month overrides; the summary lists remaining budget and drills
+into each category's movements. **828 tests green**, build with zero warnings, `dotnet format`
+clean.
 
-Next: CSV export of a date range's expenses, then the rest of the backlog (seed categories,
-recurring-rule editing). The backlog and decisions are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
+Next: CSV export of a date range's expenses, then seed categories and recurring-rule editing.
+The backlog and decisions are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Commands to verify any change
 

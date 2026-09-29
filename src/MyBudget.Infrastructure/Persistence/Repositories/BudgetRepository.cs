@@ -28,4 +28,19 @@ internal sealed class BudgetRepository(MyBudgetDbContext dbContext) : IBudgetRep
             .ToListAsync(cancellationToken);
 
     public void Add(MonthlyBudget budget) => dbContext.MonthlyBudgets.Add(budget);
+
+    public async Task<IReadOnlyList<BudgetDefault>> ListDefaultsAsync(
+        Guid userId, CancellationToken cancellationToken = default)
+        => await dbContext.BudgetDefaults
+            .AsNoTracking()
+            .Where(budgetDefault => budgetDefault.UserId == userId)
+            .ToListAsync(cancellationToken);
+
+    public Task<BudgetDefault?> FindDefaultAsync(
+        Guid userId, Guid categoryId, CancellationToken cancellationToken = default)
+        => dbContext.BudgetDefaults.FirstOrDefaultAsync(
+            budgetDefault => budgetDefault.UserId == userId && budgetDefault.CategoryId == categoryId,
+            cancellationToken);
+
+    public void AddDefault(BudgetDefault budgetDefault) => dbContext.BudgetDefaults.Add(budgetDefault);
 }

@@ -21,6 +21,9 @@ public static class MessageKeys
     /// <summary>Shown once per window when a user sends updates faster than the throttle allows.</summary>
     public const string RateLimited = nameof(RateLimited);
 
+    /// <summary>The evening reminder to log the day's expenses.</summary>
+    public const string DailyReminderMessage = "DailyReminder.Message";
+
     public const string MenuSummary = "Menu.Summary";
     public const string MenuAddExpense = "Menu.AddExpense";
     public const string MenuExpenses = "Menu.Expenses";
@@ -53,6 +56,16 @@ public static class MessageKeys
     public const string OnboardingTimezoneCustomPrompt = "Onboarding.TimezoneCustomPrompt";
     public const string OnboardingTimezoneCustomInvalid = "Onboarding.TimezoneCustomInvalid";
     public const string FeatureNotReady = "FeatureNotReady";
+
+    public const string SettingsTitle = "Settings.Title";
+    public const string SettingsReminderStateOn = "Settings.ReminderStateOn";
+    public const string SettingsReminderStateOff = "Settings.ReminderStateOff";
+    public const string SettingsReminderEnable = "Settings.ReminderEnable";
+    public const string SettingsReminderDisable = "Settings.ReminderDisable";
+    public const string SettingsDeleteData = "Settings.DeleteData";
+    public const string SettingsDeleteWarning = "Settings.DeleteWarning";
+    public const string SettingsDeleteConfirm = "Settings.DeleteConfirm";
+    public const string SettingsDeleted = "Settings.Deleted";
 
     public const string CommandStartDescription = "Command.Start.Description";
     public const string CommandHelpDescription = "Command.Help.Description";
@@ -139,15 +152,17 @@ public static class MessageKeys
     public const string BudgetTitle = "Budget.Title";
     public const string BudgetEmpty = "Budget.Empty";
     public const string BudgetLine = "Budget.Line";
+    public const string BudgetLineRecurring = "Budget.LineRecurring";
     public const string BudgetTotal = "Budget.Total";
     public const string BudgetButtonAssign = "Budget.ButtonAssign";
-    public const string BudgetButtonCopy = "Budget.ButtonCopy";
     public const string BudgetChooseCategory = "Budget.ChooseCategory";
     public const string BudgetAmountPrompt = "Budget.AmountPrompt";
     public const string BudgetAmountInvalid = "Budget.AmountInvalid";
     public const string BudgetSaved = "Budget.Saved";
-    public const string BudgetCopied = "Budget.Copied";
-    public const string BudgetNoPrevious = "Budget.NoPrevious";
+    public const string BudgetSavedRecurring = "Budget.SavedRecurring";
+    public const string BudgetScopePrompt = "Budget.ScopePrompt";
+    public const string BudgetScopeMonth = "Budget.ScopeMonth";
+    public const string BudgetScopeAllMonths = "Budget.ScopeAllMonths";
     public const string BudgetPastMonth = "Budget.PastMonth";
     public const string BudgetCategoryInactive = "Budget.CategoryInactive";
     public const string BudgetCategoryNotFound = "Budget.CategoryNotFound";
@@ -161,6 +176,15 @@ public static class MessageKeys
     public const string SummaryLine = "Summary.Line";
     public const string SummaryLineUnbudgeted = "Summary.LineUnbudgeted";
     public const string SummaryEmpty = "Summary.Empty";
+    public const string SummaryRemaining = "Summary.Remaining";
+    public const string SummaryOverspent = "Summary.Overspent";
+    public const string SummaryButtonByCategory = "Summary.ButtonByCategory";
+
+    public const string BreakdownChoose = "Breakdown.Choose";
+    public const string BreakdownHeader = "Breakdown.Header";
+    public const string BreakdownEmpty = "Breakdown.Empty";
+    public const string BreakdownLine = "Breakdown.Line";
+    public const string BreakdownTotal = "Breakdown.Total";
     public const string NavigationPrevious = "Navigation.Previous";
     public const string NavigationCurrent = "Navigation.Current";
     public const string NavigationNext = "Navigation.Next";
@@ -186,6 +210,8 @@ public static class MessageKeys
     public const string StatisticsButtonCategoriesChart = "Statistics.ButtonCategoriesChart";
     public const string StatisticsButtonDailyChart = "Statistics.ButtonDailyChart";
     public const string StatisticsChartCategoriesCaption = "Statistics.ChartCategoriesCaption";
+    public const string StatisticsChartCategoryLegend = "Statistics.ChartCategoryLegend";
+    public const string StatisticsChartCategoryLegendNoBudget = "Statistics.ChartCategoryLegendNoBudget";
     public const string StatisticsChartDailyCaption = "Statistics.ChartDailyCaption";
 
     public const string MonthlyClosingHeader = "MonthlyClosing.Header";
@@ -262,6 +288,7 @@ public static class MessageKeys
         ConversationExpired,
         UnexpectedError,
         RateLimited,
+        DailyReminderMessage,
         MenuSummary,
         MenuAddExpense,
         MenuExpenses,
@@ -290,6 +317,15 @@ public static class MessageKeys
         OnboardingTimezoneCustomPrompt,
         OnboardingTimezoneCustomInvalid,
         FeatureNotReady,
+        SettingsTitle,
+        SettingsReminderStateOn,
+        SettingsReminderStateOff,
+        SettingsReminderEnable,
+        SettingsReminderDisable,
+        SettingsDeleteData,
+        SettingsDeleteWarning,
+        SettingsDeleteConfirm,
+        SettingsDeleted,
         CommandStartDescription,
         CommandHelpDescription,
         CommandCancelDescription,
@@ -370,15 +406,17 @@ public static class MessageKeys
         BudgetTitle,
         BudgetEmpty,
         BudgetLine,
+        BudgetLineRecurring,
         BudgetTotal,
         BudgetButtonAssign,
-        BudgetButtonCopy,
         BudgetChooseCategory,
         BudgetAmountPrompt,
         BudgetAmountInvalid,
         BudgetSaved,
-        BudgetCopied,
-        BudgetNoPrevious,
+        BudgetSavedRecurring,
+        BudgetScopePrompt,
+        BudgetScopeMonth,
+        BudgetScopeAllMonths,
         BudgetPastMonth,
         BudgetCategoryInactive,
         BudgetCategoryNotFound,
@@ -391,6 +429,14 @@ public static class MessageKeys
         SummaryLine,
         SummaryLineUnbudgeted,
         SummaryEmpty,
+        SummaryRemaining,
+        SummaryOverspent,
+        SummaryButtonByCategory,
+        BreakdownChoose,
+        BreakdownHeader,
+        BreakdownEmpty,
+        BreakdownLine,
+        BreakdownTotal,
         NavigationPrevious,
         NavigationCurrent,
         NavigationNext,
@@ -415,6 +461,8 @@ public static class MessageKeys
         StatisticsButtonCategoriesChart,
         StatisticsButtonDailyChart,
         StatisticsChartCategoriesCaption,
+        StatisticsChartCategoryLegend,
+        StatisticsChartCategoryLegendNoBudget,
         StatisticsChartDailyCaption,
         MonthlyClosingHeader,
         MonthlyClosingTotalSpent,

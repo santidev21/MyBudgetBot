@@ -27,7 +27,7 @@ internal sealed class ExpensesConversation(
     IMoneyFormatter moneyFormatter,
     IDateParser dateParser,
     IUserLocalDate localDate,
-    MainMenu menu) : IConversation
+    MainMenu menu) : IConversation, IHandoffConversation
 {
     public const string ConversationName = "expenses";
 
@@ -70,6 +70,12 @@ internal sealed class ExpensesConversation(
     public Task<ConversationTurn> StartAsync(
         ConversationContext context, CancellationToken cancellationToken) =>
         BuildListAsync(context, [], cancellationToken);
+
+    public Task<ConversationTurn> StartWithAsync(
+        ConversationContext context, string payload, CancellationToken cancellationToken) =>
+        Guid.TryParse(payload, out var expenseId)
+            ? BuildDetailAsync(context, expenseId, [], cancellationToken)
+            : StartAsync(context, cancellationToken);
 
     public Task<ConversationTurn> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
@@ -230,7 +236,7 @@ internal sealed class ExpensesConversation(
 
         // Fetch one extra row inside the service so HasMore is known without a COUNT.
         var page = await reports.GetHistoryAsync(
-            context.User.Id, range, payload.After, PageSize, cancellationToken);
+            context.User.Id, range, payload.After, PageSize, cancellationToken: cancellationToken);
 
         var rows = page.Items
             .Select(item => new[] { new BotButton(ListLabel(context, item), OpenPrefix + item.Id) })

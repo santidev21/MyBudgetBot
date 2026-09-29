@@ -22,6 +22,57 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MyBudget.Domain.Budgets.BudgetDefault", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("CategoryId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("category_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<short>("EffectiveFromMonth")
+                        .HasColumnType("smallint")
+                        .HasColumnName("effective_from_month");
+
+                    b.Property<short>("EffectiveFromYear")
+                        .HasColumnType("smallint")
+                        .HasColumnName("effective_from_year");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "CategoryId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_budget_defaults_user_category");
+
+                    b.ToTable("budget_defaults", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_budget_defaults_amount", "amount >= 0");
+
+                            t.HasCheckConstraint("ck_budget_defaults_month", "effective_from_month BETWEEN 1 AND 12");
+
+                            t.HasCheckConstraint("ck_budget_defaults_year", "effective_from_year BETWEEN 2000 AND 2100");
+                        });
+                });
+
             modelBuilder.Entity("MyBudget.Domain.Budgets.MonthlyBudget", b =>
                 {
                     b.Property<Guid>("Id")
@@ -351,6 +402,12 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
                         .HasColumnName("currency")
                         .IsFixedLength();
 
+                    b.Property<bool>("DailyReminderEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("daily_reminder_enabled");
+
                     b.Property<string>("DisplayName")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
@@ -570,6 +627,42 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("MyBudget.Infrastructure.Persistence.Records.ReminderDeliveryRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateOnly>("LocalDate")
+                        .HasColumnType("date")
+                        .HasColumnName("local_date");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("sent_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Kind", "LocalDate")
+                        .IsUnique()
+                        .HasDatabaseName("uq_reminder_deliveries_user_kind_date");
+
+                    b.ToTable("reminder_deliveries", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_reminder_deliveries_kind", "btrim(kind) <> ''");
+                        });
+                });
+
             modelBuilder.Entity("MyBudget.Infrastructure.Persistence.Records.TelegramUpdateRecord", b =>
                 {
                     b.Property<long>("UpdateId")
@@ -614,6 +707,15 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_telegram_updates_status", "status IN ('received','processed','failed','ignored')");
                         });
+                });
+
+            modelBuilder.Entity("MyBudget.Domain.Budgets.BudgetDefault", b =>
+                {
+                    b.HasOne("MyBudget.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("MyBudget.Domain.Budgets.MonthlyBudget", b =>
@@ -698,6 +800,15 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("MyBudget.Infrastructure.Persistence.Records.PendingActionRecord", b =>
+                {
+                    b.HasOne("MyBudget.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MyBudget.Infrastructure.Persistence.Records.ReminderDeliveryRecord", b =>
                 {
                     b.HasOne("MyBudget.Domain.Users.User", null)
                         .WithMany()

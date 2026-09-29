@@ -22,11 +22,14 @@ internal sealed class ExpenseReadRepository(MyBudgetDbContext dbContext) : IExpe
         DateRange range,
         ExpensePageCursor? after,
         int take,
+        Guid? categoryId = null,
         CancellationToken cancellationToken = default)
     {
         var hasCursor = after is not null;
         var cursorDate = after?.ExpenseDate ?? DateOnly.MinValue;
         var cursorId = after?.ExpenseId ?? Guid.Empty;
+        var hasCategory = categoryId is not null;
+        var category = categoryId ?? Guid.Empty;
 
         return await dbContext.Expenses
             .FromSql($"""
@@ -36,6 +39,7 @@ internal sealed class ExpenseReadRepository(MyBudgetDbContext dbContext) : IExpe
                 WHERE user_id = {userId}
                   AND expense_date >= {range.From}
                   AND expense_date <= {range.To}
+                  AND ({hasCategory} = FALSE OR category_id = {category})
                   AND ({hasCursor} = FALSE
                        OR expense_date < {cursorDate}
                        OR (expense_date = {cursorDate} AND id < {cursorId}))
@@ -93,4 +97,12 @@ internal sealed class ExpenseReadRepository(MyBudgetDbContext dbContext) : IExpe
                               && expense.ExpenseDate >= range.From
                               && expense.ExpenseDate <= range.To)
             .SumAsync(expense => expense.Amount, cancellationToken);
+
+    public Task<bool> ExistsOnAsync(
+        Guid userId, DateOnly date, CancellationToken cancellationToken = default)
+        => dbContext.Expenses
+            .AsNoTracking()
+            .AnyAsync(
+                expense => expense.UserId == userId && expense.ExpenseDate == date,
+                cancellationToken);
 }

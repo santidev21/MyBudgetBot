@@ -32,6 +32,21 @@ public sealed record ConversationTurn(IReadOnlyList<BotResponse> Responses)
     /// <summary>True when the flow finished and the stored state must be cleared.</summary>
     public bool Completed { get; init; }
 
+    /// <summary>
+    /// True when the turn erased the user. The dispatcher then settles the inbox without
+    /// referencing an owner that no longer exists.
+    /// </summary>
+    public bool UserRemoved { get; init; }
+
+    /// <summary>
+    /// When set, the router starts this conversation instead of keeping the current one. Used to
+    /// hand a specific row to the flow that already knows how to edit and delete it.
+    /// </summary>
+    public string? HandoffConversation { get; init; }
+
+    /// <summary>Opaque value passed to a handoff target that supports one.</summary>
+    public string? HandoffPayload { get; init; }
+
     public static ConversationTurn Say(string text) => new([BotResponse.Message(text)]);
 
     public static ConversationTurn Say(string text, BotKeyboard keyboard) =>
@@ -57,4 +72,14 @@ public interface IConversation
 
     Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// A conversation that can be opened on a specific row, not just from the top. The router uses
+/// this when another flow hands it a value such as an expense id.
+/// </summary>
+internal interface IHandoffConversation
+{
+    Task<ConversationTurn> StartWithAsync(
+        ConversationContext context, string payload, CancellationToken cancellationToken);
 }

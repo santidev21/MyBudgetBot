@@ -172,3 +172,32 @@ internal sealed class MonthlyClosingRecordConfiguration : IEntityTypeConfigurati
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class ReminderDeliveryRecordConfiguration : IEntityTypeConfiguration<ReminderDeliveryRecord>
+{
+    public void Configure(EntityTypeBuilder<ReminderDeliveryRecord> builder)
+    {
+        builder.ToTable("reminder_deliveries", table => table.HasCheckConstraint(
+            "ck_reminder_deliveries_kind",
+            "btrim(kind) <> ''"));
+
+        builder.HasKey(record => record.Id);
+        builder.Property(record => record.Id).HasColumnName("id").ValueGeneratedNever();
+        builder.Property(record => record.UserId).HasColumnName("user_id").IsRequired();
+        builder.Property(record => record.Kind).HasColumnName("kind").HasMaxLength(32).IsRequired();
+        builder.Property(record => record.LocalDate).HasColumnName("local_date").HasColumnType("date").IsRequired();
+        builder.Property(record => record.SentAt).HasColumnName("sent_at").HasColumnType("timestamptz").IsRequired();
+
+        builder
+            .HasIndex(record => new { record.UserId, record.Kind, record.LocalDate })
+            .IsUnique()
+            .HasDatabaseName("uq_reminder_deliveries_user_kind_date");
+
+        // A delivery marker has no meaning without its owner, so deleting the user takes it along.
+        builder
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(record => record.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

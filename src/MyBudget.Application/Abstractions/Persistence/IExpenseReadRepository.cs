@@ -24,6 +24,7 @@ public interface IExpenseReadRepository
         DateRange range,
         ExpensePageCursor? after,
         int take,
+        Guid? categoryId = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>The largest expenses of a range, biggest amount first.</summary>
@@ -41,4 +42,8 @@ public interface IExpenseReadRepository
 
     Task<long> SumAsync(
         Guid userId, DateRange range, CancellationToken cancellationToken = default);
+
+    /// <summary>True when the user recorded at least one expense on that local calendar day.</summary>
+    Task<bool> ExistsOnAsync(
+        Guid userId, DateOnly date, CancellationToken cancellationToken = default);
 }

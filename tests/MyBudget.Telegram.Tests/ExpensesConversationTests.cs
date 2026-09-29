@@ -49,6 +49,7 @@ public sealed class ExpensesConversationTests
                 Arg.Any<DateRange>(),
                 Arg.Any<ExpensePageCursor?>(),
                 Arg.Any<int>(),
+                Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new ExpenseHistoryPage(SeptemberRange, items, next)));
 
@@ -115,7 +116,7 @@ public sealed class ExpensesConversationTests
 
         harness.ReportService
             .GetHistoryAsync(
-                harness.User.Id, Arg.Any<DateRange>(), cursor, Arg.Any<int>(), Arg.Any<CancellationToken>())
+                harness.User.Id, Arg.Any<DateRange>(), cursor, Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(new ExpenseHistoryPage(SeptemberRange, [secondPage], null)));
 
         var turn = await harness.Router.RouteCallbackAsync(
@@ -124,7 +125,7 @@ public sealed class ExpensesConversationTests
             CancellationToken.None);
 
         await harness.ReportService.Received(1).GetHistoryAsync(
-            harness.User.Id, Arg.Any<DateRange>(), cursor, Arg.Any<int>(), Arg.Any<CancellationToken>());
+            harness.User.Id, Arg.Any<DateRange>(), cursor, Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
 
         ExpensesPayload.Parse(turn.NextPayload).Next.Should().BeNull();
         Buttons(turn).Should().Contain(button => button.CallbackData == "exps:prevpage");
@@ -149,7 +150,7 @@ public sealed class ExpensesConversationTests
             CancellationToken.None);
 
         await harness.ReportService.Received(1).GetHistoryAsync(
-            harness.User.Id, Arg.Any<DateRange>(), null, Arg.Any<int>(), Arg.Any<CancellationToken>());
+            harness.User.Id, Arg.Any<DateRange>(), null, Arg.Any<int>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -168,6 +169,7 @@ public sealed class ExpensesConversationTests
             new DateRange(new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31)),
             null,
             Arg.Any<int>(),
+            Arg.Any<Guid?>(),
             Arg.Any<CancellationToken>());
     }
 

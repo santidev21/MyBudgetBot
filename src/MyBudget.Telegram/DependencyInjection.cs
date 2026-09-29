@@ -6,6 +6,7 @@ using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
 using MyBudget.Telegram.RateLimiting;
 using MyBudget.Telegram.Recurring;
+using MyBudget.Telegram.Reminders;
 using MyBudget.Telegram.Reporting;
 using Telegram.Bot;
 
@@ -50,9 +51,11 @@ public static class DependencyInjection
             services.AddSingleton<RecurringExpenseNotifier>();
             services.AddHostedService<RecurringExpenseScheduler>();
 
-            // Same reasoning for the closing: a report the user cannot receive is not sent.
+            // Same reasoning for the closing and the evening reminder, whose triggers are the
+            // user's own local time; one minute-ticker drives both.
             services.AddSingleton<MonthlyClosingNotifier>();
-            services.AddHostedService<MonthlyClosingScheduler>();
+            services.AddSingleton<DailyReminderNotifier>();
+            services.AddHostedService<ScheduledNotificationsScheduler>();
 
             // Registered here so polling simply does not run when webhooks are the transport.
             services.AddHostedService<TelegramPollingService>();
@@ -70,9 +73,10 @@ public static class DependencyInjection
         services.AddScoped<IConversation, ExpensesConversation>();
         services.AddScoped<IConversation, RecurringConversation>();
         services.AddScoped<IConversation, SummaryConversation>();
+        services.AddScoped<IConversation, CategoryDetailConversation>();
         services.AddScoped<IConversation, StatisticsConversation>();
+        services.AddScoped<IConversation, SettingsConversation>();
         services.AddScoped<IGlobalCallback, ExpenseUndoHandler>();
-        services.AddScoped<IGlobalCallback, ClosingCopyHandler>();
         services.AddScoped<ConversationRouter>();
         services.AddScoped<ITelegramUpdateDispatcher, TelegramUpdateDispatcher>();
 

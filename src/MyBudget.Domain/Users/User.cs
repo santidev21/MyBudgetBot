@@ -48,6 +48,12 @@ public sealed class User : Entity
     public string Language { get; private set; } = DefaultLanguage;
 
     /// <summary>
+    /// Whether the bot may send the daily "did you log your expenses?" reminder. On by default:
+    /// a reminder feature nobody notices is not useful, and it can be turned off in settings.
+    /// </summary>
+    public bool DailyReminderEnabled { get; private set; } = true;
+
+    /// <summary>
     /// Refreshes the profile snapshot from Telegram. Both values are display-only and
     /// must never be used as identity.
     /// </summary>
@@ -95,6 +101,11 @@ public sealed class User : Entity
         }
 
         Language = language.Trim();
+    }
+
+    public void ChangeDailyReminder(bool enabled)
+    {
+        DailyReminderEnabled = enabled;
     }
 
     private static string? Truncate(string? value, int maxLength)

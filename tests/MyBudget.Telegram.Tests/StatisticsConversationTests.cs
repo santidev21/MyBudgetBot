@@ -207,6 +207,13 @@ public sealed class StatisticsConversationTests
             .GetStatisticsAsync(
                 harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(Sample());
+        harness.ReportService
+            .GetMonthlySummaryAsync(harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(new MonthlySummary(September,
+            [
+                new BudgetLine(Guid.NewGuid(), "Comida", "🍔", 100_000, 90_000),
+                new BudgetLine(Guid.NewGuid(), "Ocio", "🎬", 0, 60_000),
+            ]));
 
         var turn = await harness.Router.RouteCallbackAsync(
             ContextFor(harness, September, "statistics"),
@@ -217,8 +224,12 @@ public sealed class StatisticsConversationTests
         var response = turn.Responses[0];
         response.Photo.Should().NotBeNull();
         response.Photo!.Take(8).Should().Equal(137, 80, 78, 71, 13, 10, 26, 10);
-        response.Text.Should().Be(harness.Messages.Get(
-            "es", MessageKeys.StatisticsChartCategoriesCaption, "septiembre 2026"));
+        response.Text.Should().Be(
+            harness.Messages.Get("es", MessageKeys.StatisticsChartCategoriesCaption, "septiembre 2026")
+            + "\n\n"
+            + harness.Messages.Get("es", MessageKeys.StatisticsChartCategoryLegend, 1, "🍔 Comida", "$90.000", "$100.000", "90 %")
+            + "\n"
+            + harness.Messages.Get("es", MessageKeys.StatisticsChartCategoryLegendNoBudget, 2, "🎬 Ocio", "$60.000"));
         response.Keyboard!.Rows
             .SelectMany(row => row)
             .Should().Contain(button => button.CallbackData == "stats:chart-daily");

@@ -64,6 +64,12 @@ public sealed class MonthlyClosingService(
     /// <summary>How many of the closed month's biggest categories the closing shows.</summary>
     public const int TopCategoryCount = 5;
 
+    /// <summary>
+    /// The last-day closing fires at this local time. The first-day pass stays as the fallback,
+    /// so a bot that was down at 23:59 still sends it.
+    /// </summary>
+    public static readonly TimeSpan ClosingTime = new(23, 59, 0);
+
     public async Task<IReadOnlyList<MonthlyClosing>> PrepareDueAsync(
         CancellationToken cancellationToken = default)
     {
@@ -73,16 +79,15 @@ public sealed class MonthlyClosingService(
 
         foreach (var user in all)
         {
-            // The user's calendar date, never UTC: the first of the month in Bogotá may still be
-            // the last of the previous month in UTC, and the other way around.
-            var today = localDate.Today(user.TimeZone);
-            if (today.Day != 1)
+            // The user's own wall clock, never UTC: the last hour of the month in Bogotá may be
+            // the first of the next one in UTC, and the other way around.
+            var local = localDate.LocalNow(user.TimeZone);
+            var today = DateOnly.FromDateTime(local.DateTime);
+
+            if (!TryResolvePeriod(local, today, out var closedPeriod, out var newPeriod))
             {
                 continue;
             }
-
-            var newPeriod = MonthPeriod.FromDate(today);
-            var closedPeriod = newPeriod.Previous;
 
             var summary = await reports.GetMonthlySummaryAsync(user.Id, closedPeriod, cancellationToken);
             var statistics = await reports.GetStatisticsAsync(
@@ -125,5 +130,36 @@ public sealed class MonthlyClosingService(
         }
 
         return due;
+    }
+
+    /// <summary>
+    /// Decides whether a closing is due for this user right now, and which month it covers.
+    /// <para>
+    /// The last day of the month at 23:59 local closes that month; the first day of the next
+    /// month is the fallback when the bot missed that minute. Both resolve to the same closed
+    /// month, so the marker keeps the delivery exactly-once across the two paths.
+    /// </para>
+    /// </summary>
+    private static bool TryResolvePeriod(
+        DateTimeOffset local, DateOnly today, out MonthPeriod closedPeriod, out MonthPeriod newPeriod)
+    {
+        if (today.Day == 1)
+        {
+            newPeriod = MonthPeriod.FromDate(today);
+            closedPeriod = newPeriod.Previous;
+            return true;
+        }
+
+        var isLastDay = today.Day == DateTime.DaysInMonth(today.Year, today.Month);
+        if (isLastDay && local.TimeOfDay >= ClosingTime)
+        {
+            closedPeriod = MonthPeriod.FromDate(today);
+            newPeriod = closedPeriod.Next;
+            return true;
+        }
+
+        closedPeriod = default;
+        newPeriod = default;
+        return false;
     }
 }

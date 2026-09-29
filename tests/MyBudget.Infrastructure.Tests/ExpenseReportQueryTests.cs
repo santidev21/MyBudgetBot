@@ -157,4 +157,27 @@ public sealed class ExpenseReportQueryTests(DatabaseFixture fixture) : DatabaseT
 
         (await new ExpenseReadRepository(context).SumAsync(user.Id, SeptemberRange)).Should().Be(2_000);
     }
+
+    [Fact]
+    public async Task The_page_can_be_narrowed_to_a_single_category()
+    {
+        await using var context = CreateContext();
+        var user = TestData.NewUser();
+        var food = new BudgetCategory(user.Id, "Comida", "🍔");
+        var transport = new BudgetCategory(user.Id, "Transporte", "🚕");
+        context.Users.Add(user);
+        context.Categories.AddRange(food, transport);
+        context.Expenses.AddRange(
+            new Expense(user.Id, food.Id, 30_000, "Almuerzo", new DateOnly(2026, 9, 10), TestData.Today),
+            new Expense(user.Id, transport.Id, 15_000, "Taxi", new DateOnly(2026, 9, 11), TestData.Today));
+        await context.SaveChangesAsync();
+
+        var page = await new ExpenseReadRepository(context)
+            .ListPageAsync(user.Id, SeptemberRange, after: null, take: 50, categoryId: food.Id);
+        var all = await new ExpenseReadRepository(context)
+            .ListPageAsync(user.Id, SeptemberRange, after: null, take: 50);
+
+        page.Should().ContainSingle().Which.Description.Should().Be("Almuerzo");
+        all.Should().HaveCount(2);
+    }
 }

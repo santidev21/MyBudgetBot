@@ -63,18 +63,21 @@ public sealed class SummaryConversationTests
 
             Total gastado: $900.000
             Presupuesto: $1.000.000 · Uso: 90 %
+            Te quedan $100.000 este mes.
 
             🍔 Comida: $700.000 de $1.000.000 ▓▓▓▓▓▓▓░░░ 70 %
             🎬 Ocio: $200.000 —
             """);
 
         var buttons = message.Keyboard!.Rows.SelectMany(row => row).ToList();
-        buttons.Should().HaveCount(3);
-        buttons[0].Text.Should().Be("← agosto");
-        buttons[0].CallbackData.Should().Be("sum:prev");
-        buttons[1].Text.Should().Be("septiembre 2026");
-        buttons[2].Text.Should().Be("octubre →");
-        buttons[2].CallbackData.Should().Be("sum:next");
+        buttons.Should().HaveCount(4);
+        buttons[0].Text.Should().Be("📂 Por categoría");
+        buttons[0].CallbackData.Should().Be(CategoryDetailConversation.OpenCallback);
+        buttons[1].Text.Should().Be("← agosto");
+        buttons[1].CallbackData.Should().Be("sum:prev");
+        buttons[2].Text.Should().Be("septiembre 2026");
+        buttons[3].Text.Should().Be("octubre →");
+        buttons[3].CallbackData.Should().Be("sum:next");
     }
 
     [Fact]

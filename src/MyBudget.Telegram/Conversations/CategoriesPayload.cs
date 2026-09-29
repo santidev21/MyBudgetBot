@@ -19,6 +19,9 @@ internal sealed record CategoriesPayload
     /// <summary>A category name waiting for its icon.</summary>
     public string? Name { get; init; }
 
+    /// <summary>An amount waiting for the month/all-months scope decision.</summary>
+    public long? Amount { get; init; }
+
     /// <summary>A keyword waiting for the conflict decision.</summary>
     public string? Alias { get; init; }
 

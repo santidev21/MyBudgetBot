@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<IUpdateInbox, UpdateInbox>();
         services.AddScoped<IBudgetAlertStore, BudgetAlertStore>();
         services.AddScoped<IMonthlyClosingStore, MonthlyClosingStore>();
+        services.AddScoped<IReminderDeliveryStore, ReminderDeliveryStore>();
         services.AddScoped<IConversationStore, ConversationStore>();
         services.AddScoped<IPendingActionStore, PendingActionStore>();
         services.AddScoped<IUserWorkLock, UserWorkLock>();

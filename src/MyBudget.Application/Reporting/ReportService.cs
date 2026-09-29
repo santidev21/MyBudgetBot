@@ -1,4 +1,5 @@
 using MyBudget.Application.Abstractions.Persistence;
+using MyBudget.Application.Budgets;
 using MyBudget.Application.Expenses;
 using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
@@ -29,6 +30,7 @@ public interface IReportService
         DateRange range,
         ExpensePageCursor? after,
         int pageSize,
+        Guid? categoryId = null,
         CancellationToken cancellationToken = default);
 
     Task<PeriodStatistics> GetStatisticsAsync(
@@ -49,12 +51,11 @@ public sealed class ReportService(
     {
         var range = DateRange.ForMonth(period);
         var budget = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
+        var defaults = await budgets.ListDefaultsAsync(userId, cancellationToken);
         var totals = await expenseQueries.SumByCategoryAsync(userId, range, cancellationToken);
         var allCategories = await categories.ListAsync(userId, includeInactive: true, cancellationToken);
 
-        var allocation = budget is null
-            ? new Dictionary<Guid, long>()
-            : budget.Allocations.ToDictionary(allocation => allocation.CategoryId, allocation => allocation.Amount);
+        var allocation = EffectiveBudget.Merge(period, budget?.Allocations, defaults);
         var spending = totals.ToDictionary(total => total.CategoryId, total => total.Total);
 
         // A category shows when it is active, was allocated to, or actually has spending. A
@@ -81,13 +82,14 @@ public sealed class ReportService(
         DateRange range,
         ExpensePageCursor? after,
         int pageSize,
+        Guid? categoryId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
 
         // One extra row tells us whether another page exists without a second COUNT query.
         var rows = await expenseQueries.ListPageAsync(
-            userId, range, after, pageSize + 1, cancellationToken);
+            userId, range, after, pageSize + 1, categoryId, cancellationToken);
 
         var hasMore = rows.Count > pageSize;
         var page = (hasMore ? rows.Take(pageSize) : rows).ToList();

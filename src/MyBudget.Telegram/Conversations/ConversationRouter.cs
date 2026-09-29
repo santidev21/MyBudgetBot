@@ -25,6 +25,11 @@ internal sealed class ConversationRouter(
     TimeProvider timeProvider)
 {
     public async Task<ConversationTurn> RouteTextAsync(
+        ConversationContext context, string text, CancellationToken cancellationToken) =>
+        await ResolveHandoffAsync(
+            context, await RouteTextCoreAsync(context, text, cancellationToken), cancellationToken);
+
+    private async Task<ConversationTurn> RouteTextCoreAsync(
         ConversationContext context, string text, CancellationToken cancellationToken)
     {
         var command = BotCommands.Parse(text);
@@ -72,6 +77,13 @@ internal sealed class ConversationRouter(
     }
 
     public async Task<ConversationTurn> RouteCallbackAsync(
+        ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken) =>
+        await ResolveHandoffAsync(
+            context,
+            await RouteCallbackCoreAsync(context, callback, cancellationToken),
+            cancellationToken);
+
+    private async Task<ConversationTurn> RouteCallbackCoreAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
     {
         if (ActiveConversation(context) is { } active)
@@ -137,6 +149,7 @@ internal sealed class ConversationRouter(
             MessageKeys.MenuRecurring => RecurringConversation.ConversationName,
             MessageKeys.MenuSummary => SummaryConversation.ConversationName,
             MessageKeys.MenuStatistics => StatisticsConversation.ConversationName,
+            MessageKeys.MenuSettings => SettingsConversation.ConversationName,
             _ => null,
         };
 
@@ -152,6 +165,35 @@ internal sealed class ConversationRouter(
         var fresh = context with { Conversation = null };
         var started = await conversation.StartAsync(fresh, cancellationToken);
         await PersistAsync(fresh, conversation.Name, started, cancellationToken);
+        return started;
+    }
+
+    /// <summary>
+    /// Starts another conversation when a turn asks for a handoff: the flow that already owns an
+    /// action (editing an expense, for instance) takes over instead of the current one.
+    /// </summary>
+    private async Task<ConversationTurn> ResolveHandoffAsync(
+        ConversationContext context, ConversationTurn turn, CancellationToken cancellationToken)
+    {
+        if (turn.HandoffConversation is not { } name)
+        {
+            return turn;
+        }
+
+        await store.ClearAsync(context.User.Id, cancellationToken);
+
+        if (Find(name) is not { } target)
+        {
+            return Finished(
+                ConversationTurn.Say(messages.Get(context.Language, MessageKeys.FeatureNotReady)));
+        }
+
+        var fresh = context with { Conversation = null };
+        var started = target is IHandoffConversation handoff && turn.HandoffPayload is { } payload
+            ? await handoff.StartWithAsync(fresh, payload, cancellationToken)
+            : await target.StartAsync(fresh, cancellationToken);
+
+        await PersistAsync(fresh, target.Name, started, cancellationToken);
         return started;
     }
 

@@ -13,6 +13,12 @@ public interface IUserLocalDate
     DateOnly Today(string timeZoneId);
 
     DateOnly FromUtc(string timeZoneId, DateTimeOffset instant);
+
+    /// <summary>
+    /// The clock instant expressed in the user's own time zone. The date part is the user's
+    /// calendar day; the time part is what a schedule ("at 21:00 local") has to compare against.
+    /// </summary>
+    DateTimeOffset LocalNow(string timeZoneId);
 }
 
 /// <inheritdoc />
@@ -30,5 +36,14 @@ public sealed class UserLocalDate(TimeProvider timeProvider) : IUserLocalDate
         }
 
         return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, timeZone).DateTime);
+    }
+
+    public DateTimeOffset LocalNow(string timeZoneId)
+    {
+        var instant = timeProvider.GetUtcNow();
+
+        return TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var timeZone)
+            ? TimeZoneInfo.ConvertTime(instant, timeZone)
+            : instant;
     }
 }

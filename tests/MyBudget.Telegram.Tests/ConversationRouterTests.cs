@@ -111,14 +111,16 @@ public sealed class ConversationRouterTests
     }
 
     [Fact]
-    public async Task A_menu_tap_with_no_active_flow_reports_that_it_is_not_ready()
+    public async Task A_settings_tap_opens_the_settings_screen()
     {
         var harness = TelegramHarness.Build();
         var label = harness.Messages.Get("es", MessageKeys.MenuSettings);
 
         var turn = await harness.Router.RouteTextAsync(ContextFor(harness), label, CancellationToken.None);
 
+        turn.Completed.Should().BeFalse();
+        turn.NextState.Should().Be("settings");
         turn.Responses.Should().ContainSingle()
-            .Which.Text.Should().Be(harness.Messages.Get("es", MessageKeys.FeatureNotReady));
+            .Which.Text.Should().Contain(harness.Messages.Get("es", MessageKeys.SettingsTitle));
     }
 }

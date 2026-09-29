@@ -11,6 +11,7 @@ using MyBudget.Application.Localization;
 using MyBudget.Application.Matching;
 using MyBudget.Application.Money;
 using MyBudget.Application.Recurring;
+using MyBudget.Application.Reminders;
 using MyBudget.Application.Reporting;
 using MyBudget.Application.Users;
 using NSubstitute;
@@ -49,6 +50,7 @@ public sealed class ApplicationServiceRegistrationTests
         services.AddScoped(_ => Substitute.For<IBudgetAlertStore>());
         services.AddScoped(_ => Substitute.For<IMonthlyClosingStore>());
         services.AddScoped(_ => Substitute.For<IExpenseReadRepository>());
+        services.AddScoped(_ => Substitute.For<IReminderDeliveryStore>());
         services.AddScoped(_ => Substitute.For<IUnitOfWork>());
         services.AddSingleton(TimeProvider.System);
 
@@ -81,6 +83,7 @@ public sealed class ApplicationServiceRegistrationTests
         scope.ServiceProvider.GetRequiredService<IRecurringExpenseService>().Should().BeOfType<RecurringExpenseService>();
         scope.ServiceProvider.GetRequiredService<IReportService>().Should().BeOfType<ReportService>();
         scope.ServiceProvider.GetRequiredService<IMonthlyClosingService>().Should().BeOfType<MonthlyClosingService>();
+        scope.ServiceProvider.GetRequiredService<IDailyReminderService>().Should().BeOfType<DailyReminderService>();
         scope.ServiceProvider.GetRequiredService<IUserLocalDate>().Should().BeOfType<UserLocalDate>();
     }
 

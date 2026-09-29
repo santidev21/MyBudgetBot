@@ -299,10 +299,10 @@ public sealed class CategoriesConversationTests
             harness.Messages.Get("es", MessageKeys.MenuSettings),
             CancellationToken.None);
 
-        turn.Completed.Should().BeTrue();
-        turn.Responses.Should().ContainSingle()
-            .Which.Text.Should().Be(harness.Messages.Get("es", MessageKeys.FeatureNotReady));
-        harness.Conversations.Count.Should().Be(0);
+        turn.Completed.Should().BeFalse();
+        turn.NextState.Should().Be("settings");
+        harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation
+            .Should().Be(SettingsConversation.ConversationName);
     }
 
     private static void StubCatalogue(TelegramHarness harness, params BudgetCategory[] categories)

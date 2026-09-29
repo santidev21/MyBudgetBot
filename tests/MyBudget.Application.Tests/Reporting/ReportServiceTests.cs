@@ -103,7 +103,7 @@ public sealed class ReportServiceTests
         var second = NewExpense(category.Id, 20_000, new DateOnly(2026, 9, 9));
 
         _expenseQueries.ListPageAsync(
-                UserId, Arg.Any<DateRange>(), null, 3, Arg.Any<CancellationToken>())
+                UserId, Arg.Any<DateRange>(), null, 3, Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns([first, second]);
         _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([category]);
 
@@ -126,7 +126,7 @@ public sealed class ReportServiceTests
 
         // Asking for pageSize + 1 is how the service discovers a further page.
         _expenseQueries.ListPageAsync(
-                UserId, Arg.Any<DateRange>(), null, 3, Arg.Any<CancellationToken>())
+                UserId, Arg.Any<DateRange>(), null, 3, Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns([first, second, overflow]);
         _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([category]);
 

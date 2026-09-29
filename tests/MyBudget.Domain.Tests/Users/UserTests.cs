@@ -68,6 +68,20 @@ public sealed class UserTests
         user.TimeZone.Should().Be("America/Mexico_City");
     }
 
+    [Fact]
+    public void The_daily_reminder_is_on_for_a_new_user_and_can_be_turned_off()
+    {
+        var user = new User(1);
+
+        user.DailyReminderEnabled.Should().BeTrue();
+
+        user.ChangeDailyReminder(false);
+        user.DailyReminderEnabled.Should().BeFalse();
+
+        user.ChangeDailyReminder(true);
+        user.DailyReminderEnabled.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

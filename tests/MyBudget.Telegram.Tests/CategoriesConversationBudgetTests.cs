@@ -1,7 +1,6 @@
 using FluentAssertions;
 using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Budgets;
-using MyBudget.Application.Categories;
 using MyBudget.Application.Localization;
 using MyBudget.Domain.Budgets;
 using MyBudget.Domain.Categories;
@@ -39,6 +38,19 @@ public sealed class CategoriesConversationBudgetTests
             .GetMonthAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(view));
 
+    private static void StubCategory(TelegramHarness harness, Guid categoryId) =>
+        harness.CategoryService
+            .GetAsync(harness.User.Id, categoryId, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<BudgetCategory?>(
+                new BudgetCategory(harness.User.Id, "Mercado", "🛒")));
+
+    private static void StubSaved(TelegramHarness harness) =>
+        harness.BudgetService
+            .SetAllocationAsync(
+                Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<Guid>(), Arg.Any<long>(),
+                Arg.Any<BudgetScope>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(BudgetWriteResult.Ok(new MonthlyBudget(harness.User.Id, September))));
+
     [Fact]
     public async Task The_budget_screen_shows_the_current_month_and_its_lines()
     {
@@ -46,7 +58,10 @@ public sealed class CategoriesConversationBudgetTests
         var categoryId = Guid.NewGuid();
         StubMonth(harness, new MonthlyBudgetView(
             September,
-            [new MonthlyBudgetLine(categoryId, "Mercado", "🛒", 500_000, IsActive: true)]));
+            [
+                new MonthlyBudgetLine(categoryId, "Mercado", "🛒", 500_000, IsActive: true),
+                new MonthlyBudgetLine(Guid.NewGuid(), "Vivienda", "🏠", 700_000, IsActive: true, IsRecurring: true),
+            ]));
 
         var turn = await harness.Router.RouteCallbackAsync(
             ContextFor(harness, "menu", new CategoriesPayload()),
@@ -57,7 +72,7 @@ public sealed class CategoriesConversationBudgetTests
         var text = turn.Responses.Last().Text;
         text.Should().Contain("septiembre 2026");
         text.Should().Contain("$500.000");
-        text.Should().Contain(harness.Messages.Get("es", MessageKeys.BudgetTotal, "$500.000"));
+        text.Should().Contain(harness.Messages.Get("es", MessageKeys.BudgetLineRecurring, "🏠", "Vivienda", "$700.000"));
     }
 
     [Fact]
@@ -76,41 +91,17 @@ public sealed class CategoriesConversationBudgetTests
     }
 
     [Fact]
-    public async Task Assigning_picks_a_category_then_parses_the_amount()
+    public async Task The_first_assignment_a_user_makes_becomes_the_recurring_default()
     {
         var harness = TelegramHarness.Build();
         var categoryId = Guid.NewGuid();
         StubMonth(harness, new MonthlyBudgetView(
             September,
             [new MonthlyBudgetLine(categoryId, "Mercado", "🛒", 0, IsActive: true)]));
-        harness.CategoryService
-            .GetAsync(harness.User.Id, categoryId, Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult<BudgetCategory?>(new BudgetCategory(harness.User.Id, "Mercado", "🛒")));
-        harness.BudgetService
-            .SetAllocationAsync(
-                Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), categoryId, 500_000, Arg.Any<DateOnly>(),
-                Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(BudgetWriteResult.Ok(new MonthlyBudget(harness.User.Id, September))));
-
-        var picker = await harness.Router.RouteCallbackAsync(
-            ContextFor(harness, "budget", new CategoriesPayload()),
-            new IncomingCallback("cb", "cats:budget:assign"),
-            CancellationToken.None);
-
-        picker.NextState.Should().Be("budget-category");
-        picker.Responses.Last().Text.Should().Be(
-            harness.Messages.Get("es", MessageKeys.BudgetChooseCategory));
-
-        var prompt = await harness.Router.RouteCallbackAsync(
-            ContextFor(harness, "budget-category", new CategoriesPayload()),
-            new IncomingCallback("cb", $"cats:budget:set:{categoryId}"),
-            CancellationToken.None);
-
-        prompt.NextState.Should().Be("awaiting-budget-amount");
-        prompt.Responses.Last().Text.Should().Be(
-            harness.Messages.Get("es", MessageKeys.BudgetAmountPrompt, "Mercado"));
-        prompt.Responses.Last().Keyboard!.Rows.SelectMany(row => row)
-            .Should().Contain(button => button.CallbackData == "cats:budget", "the amount prompt goes back");
+        StubCategory(harness, categoryId);
+        StubSaved(harness);
+        harness.BudgetService.HasDefaultsAsync(harness.User.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(false));
 
         var saved = await harness.Router.RouteTextAsync(
             ContextFor(
@@ -119,10 +110,70 @@ public sealed class CategoriesConversationBudgetTests
             "500.000",
             CancellationToken.None);
 
+        // No scope question: the first budget is recurring without asking.
+        saved.NextState.Should().Be("budget");
         await harness.BudgetService.Received(1).SetAllocationAsync(
-            harness.User.Id, September, categoryId, 500_000, Today, Arg.Any<CancellationToken>());
+            harness.User.Id, September, categoryId, 500_000, BudgetScope.AllMonths, Today,
+            Arg.Any<CancellationToken>());
+        saved.Responses.Should().Contain(response =>
+            response.Text == harness.Messages.Get("es", MessageKeys.BudgetSavedRecurring, "$500.000", "Mercado"));
+    }
+
+    [Fact]
+    public async Task Once_defaults_exist_the_scope_is_asked_and_is_explicit()
+    {
+        var harness = TelegramHarness.Build();
+        var categoryId = Guid.NewGuid();
+        StubMonth(harness, new MonthlyBudgetView(
+            September,
+            [new MonthlyBudgetLine(categoryId, "Mercado", "🛒", 0, IsActive: true)]));
+        StubSaved(harness);
+        harness.BudgetService.HasDefaultsAsync(harness.User.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(true));
+
+        var prompt = await harness.Router.RouteTextAsync(
+            ContextFor(
+                harness, "awaiting-budget-amount",
+                new CategoriesPayload { CategoryId = categoryId, Name = "Mercado" }),
+            "500.000",
+            CancellationToken.None);
+
+        prompt.NextState.Should().Be("budget-scope");
+        prompt.Responses.Last().Text.Should().Be(
+            harness.Messages.Get("es", MessageKeys.BudgetScopePrompt, "septiembre 2026"));
+
+        var saved = await harness.Router.RouteCallbackAsync(
+            ContextFor(
+                harness, "budget-scope",
+                new CategoriesPayload { CategoryId = categoryId, Name = "Mercado", Amount = 500_000 }),
+            new IncomingCallback("cb", "cats:budget:scope:month"),
+            CancellationToken.None);
+
+        await harness.BudgetService.Received(1).SetAllocationAsync(
+            harness.User.Id, September, categoryId, 500_000, BudgetScope.Month, Today,
+            Arg.Any<CancellationToken>());
         saved.Responses.Should().Contain(response =>
             response.Text == harness.Messages.Get("es", MessageKeys.BudgetSaved, "$500.000", "Mercado"));
+    }
+
+    [Fact]
+    public async Task Choosing_all_months_sends_the_recurring_scope()
+    {
+        var harness = TelegramHarness.Build();
+        var categoryId = Guid.NewGuid();
+        StubMonth(harness, new MonthlyBudgetView(September, []));
+        StubSaved(harness);
+
+        await harness.Router.RouteCallbackAsync(
+            ContextFor(
+                harness, "budget-scope",
+                new CategoriesPayload { CategoryId = categoryId, Name = "Mercado", Amount = 500_000 }),
+            new IncomingCallback("cb", "cats:budget:scope:all"),
+            CancellationToken.None);
+
+        await harness.BudgetService.Received(1).SetAllocationAsync(
+            harness.User.Id, September, categoryId, 500_000, BudgetScope.AllMonths, Today,
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -142,7 +193,7 @@ public sealed class CategoriesConversationBudgetTests
         turn.Responses[0].Text.Should().Be(
             harness.Messages.Get("es", MessageKeys.BudgetAmountInvalid));
         await harness.BudgetService.DidNotReceiveWithAnyArgs().SetAllocationAsync(
-            default, default, default, default, default, default);
+            default, default, default, default, default, default, default);
     }
 
     [Fact]
@@ -151,10 +202,12 @@ public sealed class CategoriesConversationBudgetTests
         var harness = TelegramHarness.Build();
         var categoryId = Guid.NewGuid();
         StubMonth(harness, new MonthlyBudgetView(September, []));
+        harness.BudgetService.HasDefaultsAsync(harness.User.Id, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(false));
         harness.BudgetService
             .SetAllocationAsync(
-                Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<Guid>(), Arg.Any<long>(), Arg.Any<DateOnly>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<Guid>(), Arg.Any<long>(),
+                Arg.Any<BudgetScope>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(BudgetWriteResult.PastMonth()));
 
         var turn = await harness.Router.RouteTextAsync(
@@ -166,44 +219,6 @@ public sealed class CategoriesConversationBudgetTests
 
         turn.Responses.Should().Contain(response =>
             response.Text == harness.Messages.Get("es", MessageKeys.BudgetPastMonth));
-    }
-
-    [Fact]
-    public async Task Copying_the_previous_month_reports_success()
-    {
-        var harness = TelegramHarness.Build();
-        StubMonth(harness, new MonthlyBudgetView(September, []));
-        harness.BudgetService
-            .CopyPreviousMonthAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(new BudgetCopyResult(BudgetCopyStatus.Copied)));
-
-        var turn = await harness.Router.RouteCallbackAsync(
-            ContextFor(harness, "budget", new CategoriesPayload()),
-            new IncomingCallback("cb", "cats:budget:copy"),
-            CancellationToken.None);
-
-        await harness.BudgetService.Received(1).CopyPreviousMonthAsync(
-            harness.User.Id, September, Today, Arg.Any<CancellationToken>());
-        turn.Responses.Should().Contain(response =>
-            response.Text == harness.Messages.Get("es", MessageKeys.BudgetCopied));
-    }
-
-    [Fact]
-    public async Task Copying_without_a_previous_budget_is_explained()
-    {
-        var harness = TelegramHarness.Build();
-        StubMonth(harness, new MonthlyBudgetView(September, []));
-        harness.BudgetService
-            .CopyPreviousMonthAsync(Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(new BudgetCopyResult(BudgetCopyStatus.NoPreviousBudget)));
-
-        var turn = await harness.Router.RouteCallbackAsync(
-            ContextFor(harness, "budget", new CategoriesPayload()),
-            new IncomingCallback("cb", "cats:budget:copy"),
-            CancellationToken.None);
-
-        turn.Responses.Should().Contain(response =>
-            response.Text == harness.Messages.Get("es", MessageKeys.BudgetNoPrevious));
     }
 
     [Fact]

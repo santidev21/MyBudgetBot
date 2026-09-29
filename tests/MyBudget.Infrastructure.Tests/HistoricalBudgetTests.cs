@@ -75,7 +75,7 @@ public sealed class HistoricalBudgetTests(DatabaseFixture fixture) : DatabaseTes
     }
 
     [Fact]
-    public async Task Copying_the_previous_month_creates_independent_allocations()
+    public async Task An_explicit_month_and_a_recurring_default_are_independent_rows()
     {
         await using var context = CreateContext();
         var user = TestData.NewUser();
@@ -86,19 +86,19 @@ public sealed class HistoricalBudgetTests(DatabaseFixture fixture) : DatabaseTes
         var september = TestData.NewBudget(user.Id, September.Year, September.Month);
         september.SetAllocation(category.Id, 1_000_000);
         context.MonthlyBudgets.Add(september);
+
+        // Categories first: EF does not know the composite category foreign key, so a row that
+        // references a category must be written after that category exists.
         await context.SaveChangesAsync();
 
-        var october = TestData.NewBudget(user.Id, October.Year, October.Month);
-        october.CopyAllocationsFrom(september);
-        october.SetAllocation(category.Id, 1_500_000);
-        context.MonthlyBudgets.Add(october);
+        context.BudgetDefaults.Add(new BudgetDefault(user.Id, category.Id, September, 700_000));
         await context.SaveChangesAsync();
 
         await using var verification = CreateContext();
         var repository = new BudgetRepository(verification);
 
         (await repository.FindByPeriodAsync(user.Id, September))!.TotalAllocated.Should().Be(1_000_000);
-        (await repository.FindByPeriodAsync(user.Id, October))!.TotalAllocated.Should().Be(1_500_000);
+        (await repository.FindDefaultAsync(user.Id, category.Id))!.Amount.Should().Be(700_000);
     }
 
     [Fact]

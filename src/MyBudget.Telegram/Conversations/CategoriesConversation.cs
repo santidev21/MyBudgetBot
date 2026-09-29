@@ -70,6 +70,7 @@ internal sealed partial class CategoriesConversation(
                 context, payload, text.Text, cancellationToken),
             AwaitingBudgetAmountState => await HandleBudgetAmountAsync(
                 context, payload, text.Text, cancellationToken),
+            BudgetScopeState => BuildScopePrompt(context, payload),
             _ => await BuildListAsync(context, cancellationToken, []),
         };
     }

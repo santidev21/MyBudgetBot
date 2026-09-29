@@ -13,42 +13,63 @@ internal sealed class UserDataEraser(MyBudgetDbContext dbContext) : IUserDataEra
             throw new ArgumentException("User id is required.", nameof(userId));
         }
 
-        await using var transaction = await dbContext.Database
-            .BeginTransactionAsync(cancellationToken);
+        // The erasure runs inside the turn's ambient transaction when there is one (the work
+        // lock always wraps a turn), and opens its own only when called standalone. Beginning a
+        // second transaction on the same connection would fail.
+        var transaction = dbContext.Database.CurrentTransaction is null
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
-        // Dependency order matters: children before the rows they reference.
-        await dbContext.Expenses
-            .Where(expense => expense.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+        try
+        {
+            // Dependency order matters: children before the rows they reference.
+            await dbContext.Expenses
+                .Where(expense => expense.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.RecurringExpenses
-            .Where(rule => rule.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.RecurringExpenses
+                .Where(rule => rule.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.BudgetAlerts
-            .Where(alert => alert.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.BudgetAlerts
+                .Where(alert => alert.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.CategoryAliases
-            .Where(alias => alias.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.CategoryAliases
+                .Where(alias => alias.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.MonthlyBudgetCategories
-            .Where(allocation => allocation.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.MonthlyBudgetCategories
+                .Where(allocation => allocation.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.MonthlyBudgets
-            .Where(budget => budget.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.MonthlyBudgets
+                .Where(budget => budget.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.Categories
-            .Where(category => category.UserId == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.BudgetDefaults
+                .Where(budgetDefault => budgetDefault.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await dbContext.Users
-            .Where(user => user.Id == userId)
-            .ExecuteDeleteAsync(cancellationToken);
+            await dbContext.Categories
+                .Where(category => category.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-        await transaction.CommitAsync(cancellationToken);
+            await dbContext.Users
+                .Where(user => user.Id == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            if (transaction is not null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
+        }
     }
 }

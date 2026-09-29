@@ -8,11 +8,11 @@ using NSubstitute;
 namespace MyBudget.Application.Tests.Budgets;
 
 /// <summary>
-/// The monthly budget use cases against substituted repositories.
+/// The budget use cases against substituted repositories.
 /// <para>
-/// The rule under test is the product one: the current and future months are editable, a past
-/// month is refused with a reason, and copying the previous month only ever happens when the
-/// user asks for it.
+/// The rules under test are the product ones: the current and future months are editable, a past
+/// month is refused with a reason, an assignment can be a one-month override or the recurring
+/// default, and the default never reaches a month it did not cover.
 /// </para>
 /// </summary>
 public sealed class BudgetServiceTests
@@ -28,7 +28,13 @@ public sealed class BudgetServiceTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
     private readonly BudgetService _service;
 
-    public BudgetServiceTests() => _service = new BudgetService(_budgets, _categories, _unitOfWork);
+    public BudgetServiceTests()
+    {
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>()).Returns([]);
+        _budgets.FindDefaultAsync(UserId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns((BudgetDefault?)null);
+        _service = new BudgetService(_budgets, _categories, _unitOfWork);
+    }
 
     [Fact]
     public async Task Setting_an_allocation_creates_the_month_and_saves()
@@ -38,7 +44,8 @@ public sealed class BudgetServiceTests
         _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>())
             .Returns((MonthlyBudget?)null);
 
-        var result = await _service.SetAllocationAsync(UserId, September, category.Id, 500_000, Today);
+        var result = await _service.SetAllocationAsync(
+            UserId, September, category.Id, 500_000, BudgetScope.Month, Today);
 
         result.Saved.Should().BeTrue();
         result.Budget!.Allocations.Should().ContainSingle()
@@ -56,11 +63,49 @@ public sealed class BudgetServiceTests
         _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
         _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>()).Returns(budget);
 
-        await _service.SetAllocationAsync(UserId, September, category.Id, 450_000, Today);
+        await _service.SetAllocationAsync(
+            UserId, September, category.Id, 450_000, BudgetScope.Month, Today);
 
         budget.Allocations.Should().ContainSingle();
         budget.Allocations[0].Amount.Should().Be(450_000);
         _budgets.DidNotReceive().Add(Arg.Any<MonthlyBudget>());
+    }
+
+    [Fact]
+    public async Task Assigning_to_all_months_creates_a_default_and_clears_the_month_override()
+    {
+        var category = new BudgetCategory(UserId, "Mercado");
+        var budget = new MonthlyBudget(UserId, September);
+        budget.SetAllocation(category.Id, 300_000);
+        _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
+        _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>()).Returns(budget);
+
+        var result = await _service.SetAllocationAsync(
+            UserId, September, category.Id, 500_000, BudgetScope.AllMonths, Today);
+
+        result.Saved.Should().BeTrue();
+        _budgets.Received(1).AddDefault(Arg.Is<BudgetDefault>(created =>
+            created.CategoryId == category.Id
+            && created.Amount == 500_000
+            && created.EffectiveFrom == September));
+        budget.Allocations.Should().BeEmpty();
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Editing_the_default_keeps_the_month_it_started()
+    {
+        var category = new BudgetCategory(UserId, "Mercado");
+        var existing = new BudgetDefault(UserId, category.Id, September, 300_000);
+        _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
+        _budgets.FindDefaultAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(existing);
+
+        await _service.SetAllocationAsync(
+            UserId, October, category.Id, 500_000, BudgetScope.AllMonths, Today);
+
+        existing.Amount.Should().Be(500_000);
+        existing.EffectiveFrom.Should().Be(September);
+        _budgets.DidNotReceive().AddDefault(Arg.Any<BudgetDefault>());
     }
 
     [Fact]
@@ -69,7 +114,8 @@ public sealed class BudgetServiceTests
         var category = new BudgetCategory(UserId, "Mercado");
         _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
 
-        var result = await _service.SetAllocationAsync(UserId, August, category.Id, 100_000, Today);
+        var result = await _service.SetAllocationAsync(
+            UserId, August, category.Id, 100_000, BudgetScope.Month, Today);
 
         result.Status.Should().Be(BudgetWriteStatus.PastMonth);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -82,7 +128,8 @@ public sealed class BudgetServiceTests
         category.Deactivate();
         _categories.FindByIdAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(category);
 
-        var result = await _service.SetAllocationAsync(UserId, September, category.Id, 100_000, Today);
+        var result = await _service.SetAllocationAsync(
+            UserId, September, category.Id, 100_000, BudgetScope.Month, Today);
 
         result.Status.Should().Be(BudgetWriteStatus.CategoryInactive);
         await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
@@ -94,7 +141,8 @@ public sealed class BudgetServiceTests
         _categories.FindByIdAsync(UserId, Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns((BudgetCategory?)null);
 
-        var result = await _service.SetAllocationAsync(UserId, September, Guid.NewGuid(), 100_000, Today);
+        var result = await _service.SetAllocationAsync(
+            UserId, September, Guid.NewGuid(), 100_000, BudgetScope.Month, Today);
 
         result.Status.Should().Be(BudgetWriteStatus.CategoryNotFound);
     }
@@ -149,56 +197,61 @@ public sealed class BudgetServiceTests
     }
 
     [Fact]
-    public async Task Copying_the_previous_month_copies_every_allocation()
+    public async Task A_month_without_its_own_row_reads_the_recurring_default()
     {
-        var market = new BudgetCategory(UserId, "Mercado");
-        var transport = new BudgetCategory(UserId, "Transporte");
-        var previous = new MonthlyBudget(UserId, August);
-        previous.SetAllocation(market.Id, 500_000);
-        previous.SetAllocation(transport.Id, 120_000);
-        _budgets.FindByPeriodAsync(UserId, August, Arg.Any<CancellationToken>()).Returns(previous);
+        var category = new BudgetCategory(UserId, "Mercado");
         _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>())
             .Returns((MonthlyBudget?)null);
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns([new BudgetDefault(UserId, category.Id, September, 500_000)]);
+        _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([category]);
 
-        var result = await _service.CopyPreviousMonthAsync(UserId, September, Today);
+        var view = await _service.GetMonthAsync(UserId, September);
 
-        result.Status.Should().Be(BudgetCopyStatus.Copied);
-        result.Budget!.Allocations.Should().HaveCount(2);
-        result.Budget.TotalAllocated.Should().Be(620_000);
-        _budgets.Received(1).Add(result.Budget);
-        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        view.TotalAllocated.Should().Be(500_000);
+        view.Lines.Should().ContainSingle().Which.IsRecurring.Should().BeTrue();
     }
 
     [Fact]
-    public async Task Copying_without_a_previous_budget_reports_that_there_is_nothing_to_copy()
+    public async Task A_default_does_not_reach_a_month_before_it_started()
     {
-        _budgets.FindByPeriodAsync(UserId, August, Arg.Any<CancellationToken>())
+        var category = new BudgetCategory(UserId, "Mercado");
+        _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>())
             .Returns((MonthlyBudget?)null);
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns([new BudgetDefault(UserId, category.Id, October, 500_000)]);
+        _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([category]);
 
-        var result = await _service.CopyPreviousMonthAsync(UserId, September, Today);
+        var view = await _service.GetMonthAsync(UserId, September);
 
-        result.Status.Should().Be(BudgetCopyStatus.NoPreviousBudget);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        view.TotalAllocated.Should().Be(0);
+        view.Lines.Should().ContainSingle().Which.IsRecurring.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Copying_an_empty_previous_month_reports_that_there_is_nothing_to_copy()
+    public async Task A_month_override_wins_over_the_default()
     {
-        var previous = new MonthlyBudget(UserId, August);
-        _budgets.FindByPeriodAsync(UserId, August, Arg.Any<CancellationToken>()).Returns(previous);
+        var category = new BudgetCategory(UserId, "Mercado");
+        var budget = new MonthlyBudget(UserId, September);
+        budget.SetAllocation(category.Id, 300_000);
+        _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>()).Returns(budget);
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns([new BudgetDefault(UserId, category.Id, September, 500_000)]);
+        _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([category]);
 
-        var result = await _service.CopyPreviousMonthAsync(UserId, September, Today);
+        var view = await _service.GetMonthAsync(UserId, September);
 
-        result.Status.Should().Be(BudgetCopyStatus.NoPreviousBudget);
+        view.TotalAllocated.Should().Be(300_000);
+        view.Lines.Should().ContainSingle().Which.IsRecurring.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Copying_into_a_past_month_is_refused()
+    public async Task Having_defaults_is_reported_from_the_repository()
     {
-        var result = await _service.CopyPreviousMonthAsync(UserId, August, Today);
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns([new BudgetDefault(UserId, Guid.NewGuid(), September, 1)]);
 
-        result.Status.Should().Be(BudgetCopyStatus.PastMonth);
-        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+        (await _service.HasDefaultsAsync(UserId)).Should().BeTrue();
     }
 
     [Fact]
@@ -209,7 +262,8 @@ public sealed class BudgetServiceTests
         _budgets.FindByPeriodAsync(UserId, October, Arg.Any<CancellationToken>())
             .Returns((MonthlyBudget?)null);
 
-        var result = await _service.SetAllocationAsync(UserId, October, category.Id, 700_000, Today);
+        var result = await _service.SetAllocationAsync(
+            UserId, October, category.Id, 700_000, BudgetScope.Month, Today);
 
         result.Saved.Should().BeTrue();
     }

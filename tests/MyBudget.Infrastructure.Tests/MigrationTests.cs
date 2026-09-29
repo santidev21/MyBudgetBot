@@ -38,6 +38,7 @@ public sealed class MigrationTests(DatabaseFixture fixture) : DatabaseTestBase(f
 
         names.Should().BeEquivalentTo(
             "fk_budget_alerts_category_same_user",
+            "fk_budget_defaults_category_same_user",
             "fk_category_aliases_category_same_user",
             "fk_expenses_category_same_user",
             "fk_monthly_budget_categories_budget_same_user",

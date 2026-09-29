@@ -43,6 +43,9 @@
   <data name="RateLimited" xml:space="preserve">
     <value>Vas muy rápido. Espera unos segundos y vuelve a intentarlo.</value>
   </data>
+  <data name="DailyReminder.Message" xml:space="preserve">
+    <value>📝 No olvides registrar los gastos de hoy. Escríbeme, por ejemplo, «35.000 mercado».</value>
+  </data>
 
   <data name="Menu.Summary" xml:space="preserve">
     <value>📊 Resumen</value>
@@ -131,6 +134,34 @@
   </data>
   <data name="FeatureNotReady" xml:space="preserve">
     <value>Esa parte todavía no está lista. La estoy construyendo.</value>
+  </data>
+
+  <data name="Settings.Title" xml:space="preserve">
+    <value>⚙️ Configuración</value>
+  </data>
+  <data name="Settings.ReminderStateOn" xml:space="preserve">
+    <value>🔔 Recordatorio diario: activado</value>
+  </data>
+  <data name="Settings.ReminderStateOff" xml:space="preserve">
+    <value>🔕 Recordatorio diario: desactivado</value>
+  </data>
+  <data name="Settings.ReminderEnable" xml:space="preserve">
+    <value>🔔 Activar recordatorio</value>
+  </data>
+  <data name="Settings.ReminderDisable" xml:space="preserve">
+    <value>🔕 Desactivar recordatorio</value>
+  </data>
+  <data name="Settings.DeleteData" xml:space="preserve">
+    <value>🗑️ Borrar mis datos</value>
+  </data>
+  <data name="Settings.DeleteWarning" xml:space="preserve">
+    <value>⚠️ Esto borrará TODOS tus datos: gastos, categorías, presupuestos y recurrentes. No se puede deshacer. ¿Seguro que quieres continuar?</value>
+  </data>
+  <data name="Settings.DeleteConfirm" xml:space="preserve">
+    <value>Sí, borrar todo</value>
+  </data>
+  <data name="Settings.Deleted" xml:space="preserve">
+    <value>🧹 Listo, borré todos tus datos. Puedes empezar de nuevo cuando quieras.</value>
   </data>
 
   <data name="Command.Start.Description" xml:space="preserve">
@@ -377,14 +408,14 @@
   <data name="Budget.Line" xml:space="preserve">
     <value>{0} {1}: {2}</value>
   </data>
+  <data name="Budget.LineRecurring" xml:space="preserve">
+    <value>{0} {1}: {2} 🔁</value>
+  </data>
   <data name="Budget.Total" xml:space="preserve">
     <value>Total asignado: {0}</value>
   </data>
   <data name="Budget.ButtonAssign" xml:space="preserve">
     <value>✏️ Asignar</value>
-  </data>
-  <data name="Budget.ButtonCopy" xml:space="preserve">
-    <value>📋 Copiar mes anterior</value>
   </data>
   <data name="Budget.ChooseCategory" xml:space="preserve">
     <value>¿A qué categoría le asigno presupuesto?</value>
@@ -398,11 +429,17 @@
   <data name="Budget.Saved" xml:space="preserve">
     <value>✅ Asigné {0} a {1}.</value>
   </data>
-  <data name="Budget.Copied" xml:space="preserve">
-    <value>✅ Copié el presupuesto del mes anterior.</value>
+  <data name="Budget.SavedRecurring" xml:space="preserve">
+    <value>✅ Asigné {0} a {1} para todos los meses.</value>
   </data>
-  <data name="Budget.NoPrevious" xml:space="preserve">
-    <value>El mes anterior no tenía presupuesto, así que no hay nada que copiar.</value>
+  <data name="Budget.ScopePrompt" xml:space="preserve">
+    <value>¿Aplica solo a {0} o a todos los meses?</value>
+  </data>
+  <data name="Budget.ScopeMonth" xml:space="preserve">
+    <value>📅 Solo este mes</value>
+  </data>
+  <data name="Budget.ScopeAllMonths" xml:space="preserve">
+    <value>🔁 Todos los meses</value>
   </data>
   <data name="Budget.PastMonth" xml:space="preserve">
     <value>Los meses pasados no se pueden editar.</value>
@@ -440,6 +477,30 @@
   </data>
   <data name="Summary.Empty" xml:space="preserve">
     <value>No hay gastos ni presupuesto registrados en este mes.</value>
+  </data>
+  <data name="Summary.Remaining" xml:space="preserve">
+    <value>Te quedan {0} este mes.</value>
+  </data>
+  <data name="Summary.Overspent" xml:space="preserve">
+    <value>Te pasaste por {0} este mes.</value>
+  </data>
+  <data name="Summary.ButtonByCategory" xml:space="preserve">
+    <value>📂 Por categoría</value>
+  </data>
+  <data name="Breakdown.Choose" xml:space="preserve">
+    <value>📂 ¿Qué categoría quieres revisar?</value>
+  </data>
+  <data name="Breakdown.Header" xml:space="preserve">
+    <value>📂 {0} · {1}</value>
+  </data>
+  <data name="Breakdown.Empty" xml:space="preserve">
+    <value>No hay movimientos de esa categoría este mes.</value>
+  </data>
+  <data name="Breakdown.Line" xml:space="preserve">
+    <value>{0}: {1} — {2}</value>
+  </data>
+  <data name="Breakdown.Total" xml:space="preserve">
+    <value>Total: {0} en {1} movimientos.</value>
   </data>
   <data name="Navigation.Previous" xml:space="preserve">
     <value>← {0}</value>
@@ -513,6 +574,12 @@
   </data>
   <data name="Statistics.ChartCategoriesCaption" xml:space="preserve">
     <value>Gasto por categoría · {0}</value>
+  </data>
+  <data name="Statistics.ChartCategoryLegend" xml:space="preserve">
+    <value>{0}. {1}: {2} de {3} ({4})</value>
+  </data>
+  <data name="Statistics.ChartCategoryLegendNoBudget" xml:space="preserve">
+    <value>{0}. {1}: {2} —</value>
   </data>
   <data name="Statistics.ChartDailyCaption" xml:space="preserve">
     <value>Gasto por día · {0}</value>

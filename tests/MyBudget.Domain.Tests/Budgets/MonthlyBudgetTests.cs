@@ -79,40 +79,6 @@ public sealed class MonthlyBudgetTests
     }
 
     [Fact]
-    public void CopyAllocationsFrom_replicates_the_previous_month()
-    {
-        var userId = Guid.NewGuid();
-        var (market, housing) = (Guid.NewGuid(), Guid.NewGuid());
-        var september = new MonthlyBudget(userId, September);
-        september.SetAllocation(market, 1_000_000);
-        september.SetAllocation(housing, 1_800_000);
-
-        var october = new MonthlyBudget(userId, September.Next);
-        october.CopyAllocationsFrom(september);
-
-        october.TotalAllocated.Should().Be(2_800_000);
-        october.Allocations.Should().HaveCount(2);
-    }
-
-    [Fact]
-    public void CopyAllocationsFrom_does_not_link_the_two_months()
-    {
-        var userId = Guid.NewGuid();
-        var categoryId = Guid.NewGuid();
-        var september = new MonthlyBudget(userId, September);
-        september.SetAllocation(categoryId, 1_000_000);
-
-        var october = new MonthlyBudget(userId, September.Next);
-        october.CopyAllocationsFrom(september);
-
-        // Editing October must never rewrite September: the historical snapshot is a copy.
-        october.SetAllocation(categoryId, 1_500_000);
-
-        september.Allocations.Single().Amount.Should().Be(1_000_000);
-        october.Allocations.Single().Amount.Should().Be(1_500_000);
-    }
-
-    [Fact]
     public void The_period_is_reconstructed_from_the_stored_year_and_month()
     {
         var budget = new MonthlyBudget(Guid.NewGuid(), September);

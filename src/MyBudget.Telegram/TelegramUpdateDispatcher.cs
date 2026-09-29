@@ -173,7 +173,7 @@ internal sealed class TelegramUpdateDispatcher(
         }
 
         await sender.SendAsync(chat.Id, turn.Responses, cancellationToken);
-        await inbox.CompleteAsync(updateId, user.Id, cancellationToken);
+        await inbox.CompleteAsync(updateId, turn.UserRemoved ? null : user.Id, cancellationToken);
 
         logger.LogInformation(
             "TelegramUpdateProcessed {UpdateId} {TelegramUserId}", updateId, from.Id);

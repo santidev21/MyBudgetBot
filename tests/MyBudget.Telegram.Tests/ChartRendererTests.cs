@@ -106,6 +106,17 @@ public sealed class ChartRendererTests
         ColouredPixels(canvas).Should().Be(0);
     }
 
+    [Fact]
+    public void The_font_draws_the_money_symbols_used_on_chart_labels()
+    {
+        var canvas = new RgbCanvas(64, 16);
+        canvas.Fill(Rgb.White);
+
+        BitmapFont.Draw(canvas, "$1/2%", 0, 0, 2, Rgb.Ink);
+
+        ColouredPixels(canvas).Should().BeGreaterThan(0);
+    }
+
     private static int ColouredPixelsInRow(RgbCanvas canvas, int y)
     {
         var count = 0;

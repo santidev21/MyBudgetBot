@@ -106,28 +106,25 @@ internal sealed class StatisticsConversation(
             return await BuildAsync(context, payload.WithPeriod(period), cancellationToken);
         }
 
-        var entries = byCategory
-            ? statistics.Categories
-                .Take(SpendingChartRenderer.MaxHorizontalBars)
-                .Select(category => new ChartEntry(
-                    category.Spent, moneyFormatter.Format(category.Spent, context.User.Currency)))
-                .ToList()
-            : statistics.Daily
+        byte[] png;
+        string caption;
+
+        if (byCategory)
+        {
+            (png, caption) = await BuildCategoryChartAsync(context, period, cancellationToken);
+        }
+        else
+        {
+            var entries = statistics.Daily
                 .Select(day => new ChartEntry(
                     day.Total,
                     day.Date.Day.ToString(System.Globalization.CultureInfo.InvariantCulture)))
                 .ToList();
 
-        var png = byCategory
-            ? SpendingChartRenderer.HorizontalBars(entries)
-            : SpendingChartRenderer.VerticalBars(entries);
-
-        var caption = messages.Get(
-            context.Language,
-            byCategory
-                ? MessageKeys.StatisticsChartCategoriesCaption
-                : MessageKeys.StatisticsChartDailyCaption,
-            MonthLabel(context, period));
+            png = SpendingChartRenderer.VerticalBars(entries);
+            caption = messages.Get(
+                context.Language, MessageKeys.StatisticsChartDailyCaption, MonthLabel(context, period));
+        }
 
         return new ConversationTurn(
         [
@@ -137,6 +134,64 @@ internal sealed class StatisticsConversation(
             NextState = State,
             NextPayload = payload.WithPeriod(period).Serialize(),
         };
+    }
+
+    /// <summary>
+    /// The category bars are numbered and the amount and usage stay on the bar; the category
+    /// names, which the bitmap font cannot draw, go in a numbered legend under the chart.
+    /// </summary>
+    private async Task<(byte[] Png, string Caption)> BuildCategoryChartAsync(
+        ConversationContext context,
+        MonthPeriod period,
+        CancellationToken cancellationToken)
+    {
+        var language = context.Language;
+        var currency = context.User.Currency;
+        var summary = await reports.GetMonthlySummaryAsync(
+            context.User.Id, period, cancellationToken);
+
+        var lines = summary.Lines
+            .Where(line => line.Spent > 0)
+            .OrderByDescending(line => line.Spent)
+            .ThenBy(line => line.CategoryName, StringComparer.Ordinal)
+            .Take(SpendingChartRenderer.MaxHorizontalBars)
+            .ToList();
+
+        var entries = new List<ChartEntry>();
+        var legend = new List<string>();
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            var line = lines[index];
+            var number = index + 1;
+            var spent = moneyFormatter.Format(line.Spent, currency);
+            var label = $"{line.Icon} {line.CategoryName}";
+
+            if (line.HasBudget)
+            {
+                var budget = moneyFormatter.Format(line.Budget, currency);
+                var usage = moneyFormatter.FormatPercentage(line.UsagePercentage ?? 0m);
+                entries.Add(new ChartEntry(line.Spent, $"{number} {spent}/{budget} {usage}"));
+                legend.Add(messages.Get(
+                    language, MessageKeys.StatisticsChartCategoryLegend, number, label, spent, budget, usage));
+            }
+            else
+            {
+                entries.Add(new ChartEntry(line.Spent, $"{number} {spent}"));
+                legend.Add(messages.Get(
+                    language, MessageKeys.StatisticsChartCategoryLegendNoBudget, number, label, spent));
+            }
+        }
+
+        var caption = messages.Get(
+            language, MessageKeys.StatisticsChartCategoriesCaption, MonthLabel(context, period));
+
+        if (legend.Count > 0)
+        {
+            caption += "\n\n" + string.Join("\n", legend);
+        }
+
+        return (SpendingChartRenderer.HorizontalBars(entries), caption);
     }
 
     /// <summary>

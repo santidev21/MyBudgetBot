@@ -11,9 +11,10 @@ namespace MyBudget.Application.Tests.Reporting;
 /// <summary>
 /// The scheduled closing at the application boundary.
 /// <para>
-/// The rule under test is the moment and the exactly-once claim: the first day is decided in the
-/// user's own time zone, the report is the previous month, and a month already claimed is never
-/// prepared again. The presentation only renders what this returns.
+/// The rules under test are the moment and the exactly-once claim: the last local day at 23:59
+/// closes that month, the first local day is the fallback when that minute was missed, and a
+/// month already claimed is never prepared again. The presentation only renders what this
+/// returns.
 /// </para>
 /// </summary>
 public sealed class MonthlyClosingServiceTests
@@ -57,7 +58,8 @@ public sealed class MonthlyClosingServiceTests
     [Fact]
     public async Task A_user_whose_local_day_is_not_the_first_is_skipped_even_when_utc_says_first()
     {
-        // 02:00 UTC on 1 September is still 31 August in Bogotá: nothing is due.
+        // 02:00 UTC on 1 September is still 21:00 on 31 August in Bogotá, and the last-day
+        // closing only fires from 23:59: nothing is due.
         var user = new User(999);
         _clock.Now = new DateTimeOffset(2026, 9, 1, 2, 0, 0, TimeSpan.Zero);
         _users.ListAllAsync(Arg.Any<CancellationToken>()).Returns([user]);
@@ -67,6 +69,43 @@ public sealed class MonthlyClosingServiceTests
         due.Should().BeEmpty();
         await _closings.DidNotReceiveWithAnyArgs().TryClaimAsync(
             default, default, default, Arg.Any<CancellationToken>());
+        await _reports.DidNotReceiveWithAnyArgs().GetMonthlySummaryAsync(
+            default, default, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task The_closing_fires_on_the_last_local_day_at_2359()
+    {
+        // 23:59 on 30 September in Bogotá is 04:59 UTC on 1 October.
+        var user = new User(999);
+        _clock.Now = new DateTimeOffset(2026, 10, 1, 4, 59, 0, TimeSpan.Zero);
+        _users.ListAllAsync(Arg.Any<CancellationToken>()).Returns([user]);
+        _reports.GetMonthlySummaryAsync(user.Id, September, Arg.Any<CancellationToken>())
+            .Returns(new MonthlySummary(September, [new BudgetLine(Guid.NewGuid(), "Mercado", "🛒", 1_000_000, 400_000)]));
+        _reports.GetStatisticsAsync(user.Id, September, Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Statistics(September, 400_000, 3, 0));
+        _closings.TryClaimAsync(user.Id, September, Arg.Any<DateTimeOffset>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        var closing = (await CreateService().PrepareDueAsync()).Should().ContainSingle().Subject;
+
+        closing.ClosedPeriod.Should().Be(September);
+        closing.NewPeriod.Should().Be(new MonthPeriod(2026, 10));
+        await _closings.Received(1).TryClaimAsync(
+            user.Id, September, _clock.GetUtcNow(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task The_last_day_before_2359_is_not_due_yet()
+    {
+        // 23:58 on 30 September in Bogotá: one minute early.
+        var user = new User(999);
+        _clock.Now = new DateTimeOffset(2026, 10, 1, 4, 58, 0, TimeSpan.Zero);
+        _users.ListAllAsync(Arg.Any<CancellationToken>()).Returns([user]);
+
+        var due = await CreateService().PrepareDueAsync();
+
+        due.Should().BeEmpty();
         await _reports.DidNotReceiveWithAnyArgs().GetMonthlySummaryAsync(
             default, default, Arg.Any<CancellationToken>());
     }

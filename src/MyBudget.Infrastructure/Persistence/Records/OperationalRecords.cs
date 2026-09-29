@@ -123,3 +123,26 @@ internal sealed class MonthlyClosingRecord
 
     public DateTimeOffset SentAt { get; set; }
 }
+
+/// <summary>
+/// One scheduled message already delivered to a user on a given local day.
+/// <para>
+/// Operational, not financial: it only makes a per-day notification exactly-once. The unique key
+/// is <c>(user_id, kind, local_date)</c>, so a scheduler that ticks every minute cannot send the
+/// same daily reminder twice.
+/// </para>
+/// </summary>
+internal sealed class ReminderDeliveryRecord
+{
+    public Guid Id { get; set; }
+
+    public Guid UserId { get; set; }
+
+    /// <summary>Which notification this is, for example <c>daily</c>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>The user's local calendar day the notification belongs to.</summary>
+    public DateOnly LocalDate { get; set; }
+
+    public DateTimeOffset SentAt { get; set; }
+}

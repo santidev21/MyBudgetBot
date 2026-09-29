@@ -8,11 +8,12 @@ namespace MyBudget.Telegram.Conversations;
 
 /// <summary>
 /// The monthly budget slice of the category flow: see the month, assign an amount to a category,
-/// and copy the previous month on request.
+/// and choose whether it applies to one month or to every month.
 /// <para>
 /// Only the current month is offered, and the service refuses a past one with a reason, so the
-/// interface says past months cannot be edited rather than silently doing nothing. Copying is
-/// always explicit; nothing is rolled over automatically.
+/// interface says past months cannot be edited rather than silently doing nothing. The first
+/// assignment a user ever makes becomes the recurring default; after that the scope is always
+/// asked, and nothing is ever copied automatically.
 /// </para>
 /// </summary>
 internal sealed partial class CategoriesConversation
@@ -20,11 +21,13 @@ internal sealed partial class CategoriesConversation
     private const string BudgetCallback = CallbackPrefix + "budget";
     private const string BudgetAssignCallback = CallbackPrefix + "budget:assign";
     private const string BudgetSetPrefix = CallbackPrefix + "budget:set:";
-    private const string BudgetCopyCallback = CallbackPrefix + "budget:copy";
+    private const string BudgetScopeMonthCallback = CallbackPrefix + "budget:scope:month";
+    private const string BudgetScopeAllCallback = CallbackPrefix + "budget:scope:all";
 
     private const string BudgetScreenState = "budget";
     private const string BudgetCategoryState = "budget-category";
     private const string AwaitingBudgetAmountState = "awaiting-budget-amount";
+    private const string BudgetScopeState = "budget-scope";
 
     private async Task<ConversationTurn> BuildBudgetScreenAsync(
         ConversationContext context,
@@ -48,7 +51,7 @@ internal sealed partial class CategoriesConversation
             {
                 text += "\n" + messages.Get(
                     language,
-                    MessageKeys.BudgetLine,
+                    line.IsRecurring ? MessageKeys.BudgetLineRecurring : MessageKeys.BudgetLine,
                     line.Icon,
                     line.CategoryName,
                     moneyFormatter.Format(line.Amount, context.User.Currency));
@@ -63,7 +66,6 @@ internal sealed partial class CategoriesConversation
         var keyboard = BotKeyboard.Inline(
         [
             [new BotButton(messages.Get(language, MessageKeys.BudgetButtonAssign), BudgetAssignCallback)],
-            [new BotButton(messages.Get(language, MessageKeys.BudgetButtonCopy), BudgetCopyCallback)],
             [new BotButton(messages.Get(language, MessageKeys.CategoryButtonBack), ListCallback)],
         ]);
 
@@ -135,16 +137,60 @@ internal sealed partial class CategoriesConversation
                 [payload.Name ?? string.Empty]);
         }
 
+        // The first budget a user ever sets becomes the recurring default automatically; from
+        // then on the scope is an explicit decision.
+        if (!await budgets.HasDefaultsAsync(context.User.Id, cancellationToken))
+        {
+            return await ApplyAsync(
+                context, payload, amount.Amount, BudgetScope.AllMonths, cancellationToken);
+        }
+
+        return BuildScopePrompt(context, payload with { Amount = amount.Amount });
+    }
+
+    private ConversationTurn BuildScopePrompt(ConversationContext context, CategoriesPayload payload)
+    {
+        var language = context.Language;
+
+        var keyboard = BotKeyboard.Inline(
+        [
+            [new BotButton(messages.Get(language, MessageKeys.BudgetScopeMonth), BudgetScopeMonthCallback)],
+            [new BotButton(messages.Get(language, MessageKeys.BudgetScopeAllMonths), BudgetScopeAllCallback)],
+            [new BotButton(messages.Get(language, MessageKeys.ButtonCancel), CancelCallback)],
+        ]);
+
+        var prompt = messages.Get(
+            language, MessageKeys.BudgetScopePrompt, MonthLabel(language, CurrentPeriod(context)));
+
+        return new ConversationTurn([BotResponse.Message(prompt, keyboard)])
+        {
+            NextState = BudgetScopeState,
+            NextPayload = payload.Serialize(),
+        };
+    }
+
+    private async Task<ConversationTurn> ApplyAsync(
+        ConversationContext context,
+        CategoriesPayload payload,
+        long amount,
+        BudgetScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (payload.CategoryId is not { } categoryId)
+        {
+            return await BuildBudgetScreenAsync(context, cancellationToken, []);
+        }
+
         var result = await budgets.SetAllocationAsync(
-            context.User.Id, CurrentPeriod(context), categoryId, amount.Amount,
+            context.User.Id, CurrentPeriod(context), categoryId, amount, scope,
             localDate.Today(context.User.TimeZone), cancellationToken);
 
         var notice = result.Status switch
         {
             BudgetWriteStatus.Saved => Said(
                 context,
-                MessageKeys.BudgetSaved,
-                moneyFormatter.Format(amount.Amount, context.User.Currency),
+                scope == BudgetScope.AllMonths ? MessageKeys.BudgetSavedRecurring : MessageKeys.BudgetSaved,
+                moneyFormatter.Format(amount, context.User.Currency),
                 payload.Name ?? string.Empty),
             BudgetWriteStatus.CategoryInactive => Said(context, MessageKeys.BudgetCategoryInactive),
             BudgetWriteStatus.CategoryNotFound => Said(context, MessageKeys.BudgetCategoryNotFound),
@@ -168,20 +214,15 @@ internal sealed partial class CategoriesConversation
             return await BuildBudgetCategoryPickerAsync(context, cancellationToken, []);
         }
 
-        if (data == BudgetCopyCallback)
+        if (data == BudgetScopeMonthCallback || data == BudgetScopeAllCallback)
         {
-            var result = await budgets.CopyPreviousMonthAsync(
-                context.User.Id, CurrentPeriod(context),
-                localDate.Today(context.User.TimeZone), cancellationToken);
-
-            var notice = result.Status switch
+            if (payload is { CategoryId: not null, Amount: { } amount })
             {
-                BudgetCopyStatus.Copied => Said(context, MessageKeys.BudgetCopied),
-                BudgetCopyStatus.NoPreviousBudget => Said(context, MessageKeys.BudgetNoPrevious),
-                _ => Said(context, MessageKeys.BudgetPastMonth),
-            };
+                var scope = data == BudgetScopeAllCallback ? BudgetScope.AllMonths : BudgetScope.Month;
+                return await ApplyAsync(context, payload, amount, scope, cancellationToken);
+            }
 
-            return await BuildBudgetScreenAsync(context, cancellationToken, [notice]);
+            return await BuildBudgetScreenAsync(context, cancellationToken, []);
         }
 
         if (data.StartsWith(BudgetSetPrefix, StringComparison.Ordinal)

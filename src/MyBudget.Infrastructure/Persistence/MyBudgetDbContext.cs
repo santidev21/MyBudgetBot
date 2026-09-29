@@ -18,6 +18,8 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
 
     public DbSet<MonthlyBudget> MonthlyBudgets => Set<MonthlyBudget>();
 
+    public DbSet<BudgetDefault> BudgetDefaults => Set<BudgetDefault>();
+
     public DbSet<MonthlyBudgetCategory> MonthlyBudgetCategories => Set<MonthlyBudgetCategory>();
 
     public DbSet<Expense> Expenses => Set<Expense>();
@@ -33,6 +35,8 @@ public sealed class MyBudgetDbContext(DbContextOptions<MyBudgetDbContext> option
     internal DbSet<BudgetAlertRecord> BudgetAlerts => Set<BudgetAlertRecord>();
 
     internal DbSet<MonthlyClosingRecord> MonthlyClosings => Set<MonthlyClosingRecord>();
+
+    internal DbSet<ReminderDeliveryRecord> ReminderDeliveries => Set<ReminderDeliveryRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

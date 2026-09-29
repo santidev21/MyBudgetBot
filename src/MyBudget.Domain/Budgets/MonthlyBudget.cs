@@ -75,18 +75,4 @@ public sealed class MonthlyBudget : Entity
         var existing = _allocations.FirstOrDefault(a => a.CategoryId == categoryId);
         return existing is not null && _allocations.Remove(existing);
     }
-
-    /// <summary>
-    /// Copies every allocation of <paramref name="previous"/> into this (empty) month.
-    /// Used by the explicit "copy last month's budget" action; never runs implicitly.
-    /// </summary>
-    public void CopyAllocationsFrom(MonthlyBudget previous)
-    {
-        ArgumentNullException.ThrowIfNull(previous);
-
-        foreach (var allocation in previous.Allocations)
-        {
-            SetAllocation(allocation.CategoryId, allocation.Amount);
-        }
-    }
 }

@@ -76,14 +76,7 @@ internal static class MonthlyClosingMessages
                 moneyFormatter.Format(closing.TotalAllocated, currency)));
         }
 
-        var keyboard = BotKeyboard.Inline(
-        [
-            new BotButton(
-                messages.Get(language, MessageKeys.BudgetButtonCopy),
-                ClosingCopyCallback.ForPeriod(closing.ClosedPeriod)),
-        ]);
-
-        return BotResponse.Message(string.Join("\n", lines), keyboard);
+        return BotResponse.Message(string.Join("\n", lines));
     }
 
     private static string ChangeLine(

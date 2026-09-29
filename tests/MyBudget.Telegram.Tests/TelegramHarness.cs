@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using MyBudget.Application.Abstractions.Persistence;
 using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Budgets;
 using MyBudget.Application.Categories;
@@ -53,6 +54,7 @@ internal sealed class TelegramHarness
         RecurringService = Substitute.For<IRecurringExpenseService>();
         ReportService = Substitute.For<IReportService>();
         PendingActions = Substitute.For<IPendingActionStore>();
+        Eraser = Substitute.For<IUserDataEraser>();
 
         var currencies = new CurrencyRegistry();
         var formatter = new MoneyFormatter(currencies);
@@ -87,14 +89,15 @@ internal sealed class TelegramHarness
             Menu);
 
         UndoHandler = new ExpenseUndoHandler(ExpenseService, Messages, Menu);
-        ClosingCopyHandler = new ClosingCopyHandler(BudgetService, localDate, Messages, Menu);
 
         ExpenseList = new ExpensesConversation(
             Messages, ExpenseService, ReportService, CategoryService, moneyParser, formatter, dateParser,
             localDate, Menu);
 
         Summary = new SummaryConversation(Messages, ReportService, formatter, localDate);
+        CategoryDetail = new CategoryDetailConversation(Messages, ReportService, formatter, localDate);
         Statistics = new StatisticsConversation(Messages, ReportService, formatter, localDate);
+        Settings = new SettingsConversation(Messages, Menu, Eraser, UnitOfWork);
         Recurring = new RecurringConversation(
             Messages, RecurringService, CategoryService, moneyParser, formatter, localDate, Menu);
 
@@ -102,8 +105,8 @@ internal sealed class TelegramHarness
             Conversations,
             Messages,
             Menu,
-            [Onboarding, Categories, Expenses, ExpenseList, Recurring, Summary, Statistics],
-            [UndoHandler, ClosingCopyHandler],
+            [Onboarding, Categories, Expenses, ExpenseList, Recurring, Summary, CategoryDetail, Statistics, Settings],
+            [UndoHandler],
             compactParser,
             telegramOptions,
             clock);
@@ -160,11 +163,15 @@ internal sealed class TelegramHarness
 
     public SummaryConversation Summary { get; }
 
+    public CategoryDetailConversation CategoryDetail { get; }
+
     public StatisticsConversation Statistics { get; }
 
-    public ExpenseUndoHandler UndoHandler { get; }
+    public SettingsConversation Settings { get; }
 
-    public ClosingCopyHandler ClosingCopyHandler { get; }
+    public IUserDataEraser Eraser { get; }
+
+    public ExpenseUndoHandler UndoHandler { get; }
 
     public ConversationRouter Router { get; }
 

@@ -43,6 +43,26 @@ public sealed class UserLocalDateTests
         clock.Today("Nowhere/Fake").Should().Be(new DateOnly(2026, 9, 15));
     }
 
+    [Fact]
+    public void LocalNow_carries_the_zone_offset_so_a_schedule_can_compare_the_time()
+    {
+        var clock = At(new DateTimeOffset(2026, 9, 15, 2, 0, 0, TimeSpan.Zero));
+
+        var local = clock.LocalNow("America/Bogota");
+
+        local.UtcDateTime.Should().Be(new DateTime(2026, 9, 15, 2, 0, 0, DateTimeKind.Utc));
+        local.Offset.Should().Be(TimeSpan.FromHours(-5));
+        local.TimeOfDay.Should().Be(new TimeSpan(21, 0, 0));
+    }
+
+    [Fact]
+    public void LocalNow_falls_back_to_utc_for_an_unusable_zone()
+    {
+        var clock = At(new DateTimeOffset(2026, 9, 15, 10, 0, 0, TimeSpan.Zero));
+
+        clock.LocalNow("Nowhere/Fake").TimeOfDay.Should().Be(new TimeSpan(10, 0, 0));
+    }
+
     private sealed class StubTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
