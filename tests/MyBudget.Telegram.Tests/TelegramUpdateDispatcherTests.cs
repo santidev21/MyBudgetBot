@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Tests;
 using MyBudget.Telegram.Tests.Fakes;
 using NSubstitute;
@@ -170,4 +171,49 @@ public sealed class TelegramUpdateDispatcherTests
 
         harness.Sender.Messages.Should().OnlyContain(message => message.ChatId == 555);
     }
+
+    [Fact]
+    public async Task Updates_beyond_the_per_user_budget_are_dropped_with_a_single_notice()
+    {
+        var harness = TelegramHarness.Build(options: OptionsWithRateLimit(2));
+
+        await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(1, 999, "hola"));
+        await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(2, 999, "hola"));
+        await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(3, 999, "hola"));
+        await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(4, 999, "hola"));
+
+        harness.Inbox.StatusOf(1).Should().Be("processed");
+        harness.Inbox.StatusOf(2).Should().Be("processed");
+        harness.Inbox.StatusOf(3).Should().Be("ignored");
+        harness.Inbox.StatusOf(4).Should().Be("ignored");
+
+        // Two normal replies, then one notice: the fourth update is dropped silently.
+        harness.Sender.Messages.Should().HaveCount(3);
+        harness.Sender.Messages[^1].Text.Should().Contain("Vas muy rápido");
+    }
+
+    [Fact]
+    public async Task A_replayed_stale_update_does_not_spend_the_budget_a_current_message_needs()
+    {
+        // Telegram replays queued updates after downtime; the throttle runs after the stale
+        // gate so a backlog of old messages cannot lock the user out of their next real one.
+        var harness = TelegramHarness.Build(options: OptionsWithRateLimit(1));
+
+        await harness.Dispatcher.DispatchAsync(
+            TestUpdates.PrivateMessage(1, 999, "hola", sentAt: TestClock.Now.UtcDateTime.AddHours(-4)));
+        await harness.Dispatcher.DispatchAsync(TestUpdates.PrivateMessage(2, 999, "hola"));
+
+        harness.Inbox.StatusOf(1).Should().Be("ignored");
+        harness.Inbox.StatusOf(2).Should().Be("processed");
+    }
+
+    private static TelegramOptions OptionsWithRateLimit(int perMinute) => new()
+    {
+        BotToken = "test-token",
+        WebhookSecret = "test-webhook-secret-value",
+        WebhookPath = "test-webhook-path-value",
+        PublicBaseUrl = "https://example.test",
+        AllowedUserIds = "999",
+        UserRateLimitPerMinute = perMinute,
+    };
 }

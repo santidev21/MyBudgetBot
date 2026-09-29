@@ -39,6 +39,16 @@ public sealed class TelegramOptions
 
     public int ConversationTimeoutMinutes { get; set; } = 30;
 
+    /// <summary>
+    /// Maximum updates accepted from one Telegram user in a one-minute sliding window.
+    /// <para>
+    /// A message flood — a stuck client, a retry loop, someone leaning on the keyboard — is
+    /// ignored once the budget is spent, so the bot stays responsive for real input. At least
+    /// one is required: the throttle is a security property, not an optional feature.
+    /// </para>
+    /// </summary>
+    public int UserRateLimitPerMinute { get; set; } = 30;
+
     /// <summary>Long polling for local development. Off in production, where webhooks are used.</summary>
     public bool UsePolling { get; set; }
 
@@ -60,6 +70,9 @@ public sealed class TelegramOptions
     public TimeSpan StaleUpdateWindow => TimeSpan.FromMinutes(Math.Max(1, StaleUpdateMinutes));
 
     public TimeSpan ConversationTimeout => TimeSpan.FromMinutes(Math.Max(1, ConversationTimeoutMinutes));
+
+    /// <summary>The sliding window the per-user throttle counts over.</summary>
+    public TimeSpan UserRateLimitWindow => TimeSpan.FromMinutes(1);
 
     /// <summary>Parses a comma separated list, tolerating spaces and trailing separators.</summary>
     public static bool TryParseAllowedUserIds(
@@ -155,6 +168,11 @@ public sealed class TelegramOptionsValidator : IValidateOptions<TelegramOptions>
         if (options.ConversationTimeoutMinutes < 1)
         {
             failures.Add($"{TelegramOptions.SectionName}:ConversationTimeoutMinutes must be at least 1.");
+        }
+
+        if (options.UserRateLimitPerMinute < 1)
+        {
+            failures.Add($"{TelegramOptions.SectionName}:UserRateLimitPerMinute must be at least 1.");
         }
 
         if (!options.UsePolling && string.IsNullOrWhiteSpace(options.PublicBaseUrl))

@@ -30,6 +30,7 @@ public static class LocalDevelopmentConfiguration
             ["TELEGRAM_USE_POLLING"] = "Telegram:UsePolling",
             ["TELEGRAM_STALE_UPDATE_MINUTES"] = "Telegram:StaleUpdateMinutes",
             ["TELEGRAM_CONVERSATION_TIMEOUT_MINUTES"] = "Telegram:ConversationTimeoutMinutes",
+            ["TELEGRAM_USER_RATE_LIMIT_PER_MINUTE"] = "Telegram:UserRateLimitPerMinute",
             ["DEFAULT_LANGUAGE"] = "Localization:DefaultLanguage",
             ["DEFAULT_TIME_ZONE"] = "Localization:DefaultTimeZone",
         };

@@ -18,6 +18,9 @@ public static class MessageKeys
     public const string ConversationExpired = nameof(ConversationExpired);
     public const string UnexpectedError = nameof(UnexpectedError);
 
+    /// <summary>Shown once per window when a user sends updates faster than the throttle allows.</summary>
+    public const string RateLimited = nameof(RateLimited);
+
     public const string MenuSummary = "Menu.Summary";
     public const string MenuAddExpense = "Menu.AddExpense";
     public const string MenuExpenses = "Menu.Expenses";
@@ -211,6 +214,7 @@ public static class MessageKeys
         Cancelled,
         ConversationExpired,
         UnexpectedError,
+        RateLimited,
         MenuSummary,
         MenuAddExpense,
         MenuExpenses,

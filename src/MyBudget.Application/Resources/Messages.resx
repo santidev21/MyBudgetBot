@@ -40,6 +40,9 @@
   <data name="UnexpectedError" xml:space="preserve">
     <value>No pude completar la operación. Intenta de nuevo en un momento.</value>
   </data>
+  <data name="RateLimited" xml:space="preserve">
+    <value>Vas muy rápido. Espera unos segundos y vuelve a intentarlo.</value>
+  </data>
 
   <data name="Menu.Summary" xml:space="preserve">
     <value>📊 Resumen</value>

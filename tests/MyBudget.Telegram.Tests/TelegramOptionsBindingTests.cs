@@ -91,10 +91,12 @@ public sealed class TelegramOptionsBindingTests
         var options = Bind(
             ("Telegram:UsePolling", "true"),
             ("Telegram:StaleUpdateMinutes", "30"),
+            ("Telegram:UserRateLimitPerMinute", "12"),
             ("Telegram:BotToken", "123:abc"));
 
         options.UsePolling.Should().BeTrue();
         options.StaleUpdateMinutes.Should().Be(30);
+        options.UserRateLimitPerMinute.Should().Be(12);
         options.IsEnabled.Should().BeTrue();
     }
 }

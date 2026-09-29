@@ -148,6 +148,26 @@ public sealed class PresentationTests
     }
 
     [Fact]
+    public void A_non_positive_user_rate_limit_is_rejected()
+    {
+        // The throttle is a security property; zero would silently turn it off.
+        var validator = new TelegramOptionsValidator();
+
+        var result = validator.Validate(null, new TelegramOptions
+        {
+            BotToken = "123:abc",
+            WebhookSecret = "a".PadRight(24, 'b'),
+            WebhookPath = "c".PadRight(24, 'd'),
+            AllowedUserIds = "123456789",
+            PublicBaseUrl = "https://mybudget.example.test",
+            UserRateLimitPerMinute = 0,
+        });
+
+        result.Succeeded.Should().BeFalse();
+        result.Failures.Should().Contain(failure => failure.Contains("UserRateLimitPerMinute"));
+    }
+
+    [Fact]
     public void Polling_does_not_require_a_public_base_url()
     {
         var validator = new TelegramOptionsValidator();

@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
+using MyBudget.Telegram.RateLimiting;
 using Telegram.Bot;
 
 namespace MyBudget.Telegram;
@@ -51,6 +52,7 @@ public static class DependencyInjection
         }
 
         services.AddSingleton<MainMenu>();
+        services.AddSingleton<IUserRateLimiter, SlidingWindowUserRateLimiter>();
         services.AddScoped<IConversation, StartConversation>();
         services.AddScoped<IConversation, CategoriesConversation>();
         services.AddScoped<IConversation, ExpenseConversation>();

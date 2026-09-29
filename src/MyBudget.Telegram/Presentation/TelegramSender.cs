@@ -14,8 +14,6 @@ internal sealed class TelegramSender(
     ITelegramBotClient botClient,
     ILogger<TelegramSender> logger) : ITelegramSender
 {
-    private const int MaxAttempts = 3;
-
     public async Task SendAsync(
         long chatId, IReadOnlyList<BotResponse> responses, CancellationToken cancellationToken = default)
     {
@@ -61,11 +59,12 @@ internal sealed class TelegramSender(
                 return;
             }
             catch (ApiRequestException exception)
-                when (exception.ErrorCode == 429 && attempt < MaxAttempts)
+                when (exception.ErrorCode == 429 && attempt < TelegramRetryPolicy.MaxAttempts)
             {
-                var retryAfter = TimeSpan.FromSeconds(exception.Parameters?.RetryAfter ?? 1);
-                logger.LogWarning("TelegramRateLimited {RetryAfterSeconds}", retryAfter.TotalSeconds);
-                await Task.Delay(retryAfter, cancellationToken);
+                var delay = TelegramRetryPolicy.DelayFor(exception.Parameters?.RetryAfter);
+                logger.LogWarning(
+                    "TelegramRateLimited {RetryAfterSeconds} {Attempt}", delay.TotalSeconds, attempt);
+                await Task.Delay(delay, cancellationToken);
             }
         }
     }

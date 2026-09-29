@@ -14,6 +14,7 @@ using MyBudget.Application.Users;
 using MyBudget.Domain.Users;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Options;
+using MyBudget.Telegram.RateLimiting;
 using MyBudget.Telegram.Tests.Fakes;
 using NSubstitute;
 
@@ -58,6 +59,7 @@ internal sealed class TelegramHarness
         var localDate = new UserLocalDate(clock);
         var compactParser = new CompactExpenseParser(currencies, moneyParser);
         var telegramOptions = Microsoft.Extensions.Options.Options.Create(options);
+        RateLimiter = new SlidingWindowUserRateLimiter(telegramOptions, clock);
 
         Categories = new CategoriesConversation(
             Messages,
@@ -109,6 +111,7 @@ internal sealed class TelegramHarness
             Router,
             Sender,
             Messages,
+            RateLimiter,
             Microsoft.Extensions.Options.Options.Create(options),
             clock,
             NullLogger<TelegramUpdateDispatcher>.Instance);
@@ -161,6 +164,8 @@ internal sealed class TelegramHarness
     public InMemoryConversationStore Conversations { get; } = new();
 
     public RecordingTelegramSender Sender { get; } = new();
+
+    public IUserRateLimiter RateLimiter { get; }
 
     public RecordingUnitOfWork UnitOfWork { get; } = new();
 

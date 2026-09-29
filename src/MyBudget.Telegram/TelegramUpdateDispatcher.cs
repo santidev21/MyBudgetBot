@@ -6,6 +6,7 @@ using MyBudget.Application.Users;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Options;
 using MyBudget.Telegram.Presentation;
+using MyBudget.Telegram.RateLimiting;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
@@ -36,6 +37,7 @@ internal sealed class TelegramUpdateDispatcher(
     ConversationRouter router,
     ITelegramSender sender,
     IUserMessages messages,
+    IUserRateLimiter rateLimiter,
     IOptions<TelegramOptions> options,
     TimeProvider timeProvider,
     ILogger<TelegramUpdateDispatcher> logger) : ITelegramUpdateDispatcher
@@ -114,6 +116,26 @@ internal sealed class TelegramUpdateDispatcher(
             // answering each one would flood the user with explanations.
             logger.LogInformation("TelegramUpdateSkipped {UpdateId} {Reason}", updateId, "stale");
             await inbox.IgnoreAsync(updateId, null, "stale", cancellationToken);
+            return;
+        }
+
+        // Checked after the stale gate on purpose: a replay of queued updates must not spend
+        // the budget a current message needs, and before the user lookup so refusing is cheap.
+        var decision = rateLimiter.Evaluate(from.Id);
+
+        if (decision != RateLimitDecision.Allowed)
+        {
+            logger.LogWarning(
+                "TelegramUpdateThrottled {UpdateId} {TelegramUserId}", updateId, from.Id);
+
+            if (decision == RateLimitDecision.ThrottledAndNotified)
+            {
+                await sender.SendAsync(
+                    chat.Id, [BotResponse.Message(messages.Get(string.Empty, MessageKeys.RateLimited))],
+                    cancellationToken);
+            }
+
+            await inbox.IgnoreAsync(updateId, null, "rate-limited", cancellationToken);
             return;
         }
 
