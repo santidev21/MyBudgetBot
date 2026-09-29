@@ -50,6 +50,8 @@ public static class LocalDevelopmentConfiguration
         "DB_MIGRATOR_PASSWORD",
         "ADMIN_TELEGRAM_USER_ID",
         "BACKUP_RETENTION_DAYS",
+        "BACKUP_OFFSITE_TARGET",
+        "BACKUP_AGE_RECIPIENT",
     ];
 
     /// <summary>

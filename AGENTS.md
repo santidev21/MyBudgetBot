@@ -47,7 +47,13 @@ tests/                         # Domain, Application, Infrastructure, Telegram, 
 docker/app/Dockerfile
 docker/postgres/init/          # least-privilege role provisioning (runs once)
 scripts/deploy.sh
+scripts/backup.sh              # nightly verified backup
+scripts/verify-backup.sh       # restore drill into a throwaway database
+scripts/restore.sh             # break-glass restore into the live database
+scripts/install-backup-cron.sh # installs the nightly and weekly cron entries
 docs/TECHNICAL-DESIGN.md
+docs/BACKUPS.md                # backup, verification and restore runbook
+docs/DEPLOYMENT.md             # deploy, rollback and operations
 ```
 
 ## Commands
@@ -67,6 +73,9 @@ docs/TECHNICAL-DESIGN.md
 | Register the bot in Telegram | `dotnet run --project src/MyBudget.Api -- --configure-telegram` |
 | Remove the webhook | `dotnet run --project src/MyBudget.Api -- --delete-webhook` |
 | Deploy on VPS | `cd /opt/mybudget && ./scripts/deploy.sh deploy` |
+| Backup now | `cd /opt/mybudget && ./scripts/backup.sh` |
+| Restore drill | `cd /opt/mybudget && ./scripts/verify-backup.sh` |
+| Install backup cron | `cd /opt/mybudget && ./scripts/install-backup-cron.sh` |
 
 Local chat development: the app reads `.env` in development, so `TELEGRAM_BOT_TOKEN`,
 `ALLOWED_TELEGRAM_USER_IDS` and `TELEGRAM_USE_POLLING=true` are enough, then
@@ -192,6 +201,17 @@ Database and application ports are never published in production.
 - **Report sums are derived in SQL, never stored.** `IExpenseReadRepository` groups and sums in
   PostgreSQL; `IReportService` only merges the totals with category labels. The keyset page query
   is raw SQL because the tiebreaker is a `uuid`, which C# cannot compare with an operator.
+- **The EF migration history table is mixed case and must be quoted.** EF creates
+  `"__EFMigrationsHistory"`; unquoted `__EFMigrationsHistory` folds to lowercase and the restore
+  drill fails with "relation does not exist" on a perfectly good dump. Quote it in raw SQL.
+- **`pg_restore` exits 0 even when it skipped objects.** Only `--exit-on-error` makes a failed
+  restore loud; without it a missing relation surfaces later as a confusing sanity failure.
+- **The restore drill must not trust a dump it has only listed.** `pg_restore --list` proves the
+  file is readable, not that it loads. `verify-backup.sh` actually restores it and checks the
+  data, which is the only step that turns a dump into a backup.
+- **Pre-deploy and nightly dumps live in the same volume.** `deploy.sh` uses the `backup-lib`
+  primitives so the pre-deploy dump is verified and pruned like any other, instead of sitting on
+  a host path that off-site copies and the drill would never see.
 
 ## Status and handoff
 
@@ -207,8 +227,8 @@ this project; everything needed to continue is in the repository, not in anyone'
 [x] Phase 5  Expenses: guided and compact entry, edit, delete, history   <-- done
 [x] Phase 6  Category matching and keyword learning   <-- done
 [x] Phase 7  Summary and statistics                   <-- done
-[ ] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- next
-[ ] Phase 9  Optional: charts, recurring expenses, CSV export/import
+[x] Phase 8  Hardening: verified backups, runbook, rate limiting   <-- done
+[ ] Phase 9  Optional: charts, recurring expenses, CSV export/import   <-- next
 ```
 
 **Verified working:** the bot answers `/start`, asks for a time zone, and from a real Telegram
@@ -216,8 +236,33 @@ account (in production over the webhook, in development over polling) it manages
 monthly budgets, records expenses both guided and compact, suggests the category from the
 description, lets the user teach it a keyword, edits and deletes expenses, undoes a
 registration, and reports the month (`📊 Resumen`), the range history (`📋 Gastos`) and the
-month's statistics (`📈 Estadísticas`). 694 tests green, `dotnet build` with zero warnings,
-`dotnet format` clean.
+month's statistics (`📈 Estadísticas`). The nightly backup is verified by a real restore drill
+and the deploy refuses to run without a verified dump and a clean checkout. 708 tests green,
+`dotnet build` with zero warnings, `dotnet format` clean.
+
+### Phase 8 delivered — hardening
+
+- **Verified backups.** `scripts/backup.sh` dumps into the `mybudget_pg_backups` volume (separate
+  from the data volume), proves the dump is readable with `pg_restore --list`, promotes it into
+  ISO-week and calendar-month buckets by hardlink, optionally writes an `age`-encrypted off-site
+  copy, and prunes to 7 daily / 4 weekly / 12 monthly. `scripts/verify-backup.sh` is the restore
+  drill: throwaway `mybudget_restore_check` database, `pg_restore --exit-on-error`, sanity SQL
+  (migration history present, no non-positive amount, no missing calendar date, no user without a
+  Telegram id), then drop. Failure alerts the admin through the Telegram API directly, so an alert
+  works even when the application is down. `scripts/restore.sh` is the break-glass restore into
+  the live database. `scripts/install-backup-cron.sh` installs the schedule idempotently.
+  Runbook in `docs/BACKUPS.md`; a drill against the local stack is recorded there.
+- **Inbound throttle.** `SlidingWindowUserRateLimiter` gives each Telegram user a one-minute
+  sliding budget (`Telegram:UserRateLimitPerMinute`, default 30). The gate runs after the stale
+  check, so replayed updates cannot spend a current message's allowance, and before the user
+  lookup, so refusing is cheap. One `RateLimited` notice per window; the rest are dropped
+  silently. The notice is a `Messages.resx` key like every other user-facing string.
+- **429 hardening.** `TelegramRetryPolicy` honours Telegram's `retry_after`, falls back to one
+  second when it is missing or non-positive, and caps it at 60 seconds so an absurd value cannot
+  park the pipeline.
+- **Reproducible deploy.** `deploy.sh` backs up and verifies before it builds, and `pull` now
+  does `git reset --hard origin/main` plus `git clean -fd` and asserts a clean working tree, so
+  the build context is exactly the commit. The pre-deploy dump lives in the same backup volume.
 
 ### Phase 4 delivered — categories and monthly budgets
 
@@ -315,28 +360,28 @@ verbatim, and the period queries are covered against real PostgreSQL in
 `ExpenseReportQueryTests` (grouped sums, user isolation, the range boundary, and a full keyset
 walk without gaps or duplicates).
 
-### Prompt for the next session — Phase 8 (hardening)
+### Prompt for the next session — Phase 9 (optional)
 
-Paste this to start the next session:
+Phase 9 starts only if there is a real need; nothing in it is a prerequisite for a
+working bot. Paste this if you decide to build it:
 
 > Trabajamos en `/home/santidev21/Dev/MyBudget-bot`, un bot de presupuesto personal para
 > Telegram (.NET 8 + PostgreSQL, Clean Architecture, modular monolith).
 >
 > Antes de tocar nada:
-> 1. Lee `AGENTS.md` completo y `docs/TECHNICAL-DESIGN.md` (§14 Seguridad, §15 Despliegue,
->    §17 Backups, §12 Phase 8, §16 testing).
+> 1. Lee `AGENTS.md` completo y `docs/TECHNICAL-DESIGN.md` (§12 Phase 9, §11 UX flows y
+>    §16 testing). Revisa también `docs/BACKUPS.md` y `docs/DEPLOYMENT.md`.
 > 2. Mira `git log --oneline`.
 > 3. Resúmeme en 5 líneas dónde estamos, qué sigue y las reglas que no se pueden romper.
 >
-> Contexto: fases 0–7 completas, 694 tests verdes, build sin warnings, `dotnet format` limpio.
-> El bot registra gastos, aprende keywords, y ya tiene resumen mensual, historial por rangos con
-> paginación keyset y estadísticas. `.env` local con bot de DEV en polling, base en
-> `127.0.0.1:5435`; el VPS con webhook está desplegado.
+> Contexto: fases 0–8 completas, 708 tests verdes, build sin warnings, `dotnet format` limpio.
+> El bot registra gastos, aprende keywords, tiene resumen/estadísticas/historial, backups
+> nocturnos verificados con restore real y deploy reproducible. `.env` local con bot de DEV en
+> polling, base en `127.0.0.1:5435`; el VPS con webhook está desplegado.
 >
-> Haz la **Phase 8: hardening**. Alcance: backups con verificación automática (restore a una
-> base descartable y alerta al admin si falla), runbook de restore, límites de tasa de entrada
-> por usuario y manejo de 429 en la salida, y automatización de despliegue desde un checkout
-> limpio. Criterio de salida: simulacro de restore realizado y deploy reproducible.
+> Haz la **Phase 9 (opcional)**: gráficos, gastos recurrentes, exportación/importación CSV y
+> resúmenes programados. Elige **una** sola pieza con una necesidad real, no todas. Alcance de
+> cada opción en `docs/TECHNICAL-DESIGN.md` §12.
 >
 > Reglas que no se rompen: dinero `long` exacto; `ExpenseDate` es `DateOnly` en hora local;
 > ownership con `userId` primero y FKs compuestas; la historia no se borra (desactivar); nada de

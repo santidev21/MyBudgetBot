@@ -474,7 +474,7 @@ test proves the ambient culture is ignored.
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests — **done** |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
-| **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout |
+| **8 Hardening** | Backups with verification, runbook, rate limits, deploy automation | Restore drill performed; deploy from clean checkout — **done** |
 | **9 Optional** | Charts, recurring expenses, CSV, scheduled summaries | Not started without a real need |
 
 ## 13. Important edge cases
@@ -630,22 +630,43 @@ non-deletion behaviour, user erasure, orphan removal, migration guardrails, time
 maintenance, allocation persistence, localization and matching option validation, the category
 matcher corpus including ambiguity and the fuzzy default, the keyword-learning flow with its
 conflict prompt, architecture and repository contract tests, the summary, statistics and
-date-range history messages (asserted verbatim), and the period queries against real PostgreSQL
-(grouped sums, user isolation, the range boundary and a full keyset walk). 694 tests, all green.
+date-range history messages (asserted verbatim), the period queries against real PostgreSQL
+(grouped sums, user isolation, the range boundary and a full keyset walk), the per-user inbound
+throttle (budget, sliding window, one notice per window, independent budgets) and the outbound
+429 retry policy (fallbacks and the cap). 708 tests, all green.
+
+The restore drill is operational rather than unit-tested: it ran against the local stack on
+2026-09-28 and its output and the corrupt-dump failure path are recorded in
+[`BACKUPS.md`](BACKUPS.md#drill-log).
 
 ## 17. Backup strategy
 
 Docker persistence is not a backup.
 
-- Nightly `pg_dump --format=custom --no-owner --no-privileges` into `mybudget_pg_backups`, a
-  volume separate from the data volume, plus a pre-deploy backup from `deploy.sh`.
-- Off-site copies to independent storage, encrypted with `age` before leaving the VPS.
-- Retention: 7 daily, 4 weekly, 12 monthly.
-- **Verification**: `pg_restore --list` on every dump; weekly, the newest dump is restored
-  into a throwaway `mybudget_restore_check` database and sanity-checked (row counts, newest
-  expense date, no non-positive amounts), then dropped. Failures send a Telegram alert to
-  the admin user. A backup that has never been restored is not a backup.
-- Documented restore procedure and a rehearsed drill. **RPO ≤ 24 h, RTO ≤ 30 min.**
+The implementation lives in `scripts/`, the runbook in [`BACKUPS.md`](BACKUPS.md).
+
+- `scripts/backup.sh` (cron, nightly) dumps with
+  `pg_dump --format=custom --no-owner --no-privileges` into `mybudget_pg_backups`, a volume
+  separate from the data volume, then proves the dump is readable with `pg_restore --list`.
+- The same dump is hardlinked into `weekly-<ISO week>` and `monthly-<YYYY-MM>` buckets, so
+  long-term retention costs no extra space and survives pruning the daily file.
+- Off-site copies are encrypted with `age` before leaving the VPS, when
+  `BACKUP_OFFSITE_TARGET` and `BACKUP_AGE_RECIPIENT` are set; the private key stays off the
+  machine.
+- Retention: 7 daily, 4 weekly, 12 monthly (`BACKUP_RETENTION_DAYS`, `BACKUP_WEEKLY_RETENTION`,
+  `BACKUP_MONTHLY_RETENTION`).
+- **Verification**: every dump is listed; weekly, `scripts/verify-backup.sh` restores the newest
+  dump into the throwaway `mybudget_restore_check` database with `--exit-on-error`, checks the
+  data (migration history present, no non-positive amount, no missing calendar date, no user
+  without a Telegram id), and drops it. Failures send a Telegram alert to the admin user
+  directly through the API, so the alert works even when the application is down. A backup that
+  has never been restored is not a backup.
+- `scripts/restore.sh` is the break-glass restore into the live database: it stops the app,
+  recreates the database owned by `mybudget_migrator`, restores as that role, and re-applies the
+  least-privilege grants that `--no-privileges` deliberately omits.
+- `scripts/install-backup-cron.sh` installs the nightly and weekly entries idempotently. The
+  procedure is rehearsed, and the drill log is recorded in `BACKUPS.md`. **RPO ≤ 24 h, RTO ≤ 30
+  min.**
 - Point-in-time recovery via WAL archiving is a possible later addition, not MVP.
 
 ## 18. Risks and trade-offs

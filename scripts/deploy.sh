@@ -9,16 +9,21 @@
 #   ./scripts/deploy.sh rollback   return to the previous commit
 #
 # Everything is validated and the database is dumped before anything is rebuilt or
-# restarted, so a failed deployment can always return to a known good state.
+# restarted, so a failed deployment can always return to a known good state. The
+# pre-deploy dump lands in the same backup volume the nightly job uses, and is
+# verified with pg_restore before the build starts.
 #
 set -euo pipefail
 
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/mybudget}"
-BACKUP_DIR="${BACKUP_DIR:-/opt/mybudget/backups}"
 HEALTH_URL="${HEALTH_URL:-http://localhost:8080/health/ready}"
 COMPOSE="docker compose"
 LOG_FILE="/tmp/mybudget-deploy.log"
-POSTGRES_IMAGE="postgres:16-alpine"
+PREDEPLOY_KEEP="${BACKUP_PREDEPLOY_RETENTION:-5}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/backup-lib.sh
+source "$SCRIPT_DIR/lib/backup-lib.sh"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
@@ -27,11 +32,6 @@ fail() { log "ERROR: $*"; exit 1; }
 
 # Recoverable failure: the caller decides, usually by rolling back.
 bail() { log "ERROR: $*"; return 1; }
-
-env_value() {
-    # Reads a value from .env without executing it.
-    grep -E "^$1=" "$DEPLOY_DIR/.env" | head -n 1 | cut -d= -f2-
-}
 
 validate_docker() {
     log "Validating Docker..."
@@ -70,28 +70,19 @@ validate_config() {
 backup_database() {
     BACKUP_FILE=""
 
-    if ! docker ps --format '{{.Names}}' | grep -q '^mybudget-db$'; then
+    if ! database_is_running; then
         log "Database container is not running; skipping the pre-deploy backup."
         return 0
     fi
 
-    log "Backing up the database..."
-    mkdir -p "$BACKUP_DIR"
-    local target="$BACKUP_DIR/pre-deploy-$(date +%Y%m%d-%H%M%S).dump"
+    log "Backing up the database before deploy..."
+    BACKUP_FILE="pre-deploy-$(date +%Y%m%d-%H%M%S).dump"
 
-    docker exec mybudget-db pg_dump \
-        --format=custom --no-owner --no-privileges \
-        --username "$(env_value POSTGRES_USER)" \
-        --dbname "$(env_value POSTGRES_DB)" > "$target" \
-        || fail "pg_dump failed; refusing to deploy."
+    dump_database "$BACKUP_FILE" >/dev/null
+    verify_dump_readable "$BACKUP_FILE"
+    prune_prefix "pre-deploy" "$PREDEPLOY_KEEP"
 
-    # Verified on the host, where the dump actually lives.
-    docker run --rm -v "$BACKUP_DIR:/backups:ro" "$POSTGRES_IMAGE" \
-        pg_restore --list "/backups/$(basename "$target")" >/dev/null 2>&1 \
-        || fail "The backup is not readable by pg_restore; refusing to deploy."
-
-    BACKUP_FILE="$target"
-    log "Verified backup written to $BACKUP_FILE"
+    log "Verified pre-deploy backup $BACKUP_FILE in the $BACKUP_VOLUME volume."
 }
 
 pull() {
@@ -99,6 +90,13 @@ pull() {
     cd "$DEPLOY_DIR"
     git fetch --prune origin main
     git reset --hard origin/main
+
+    # A stray untracked file can change the build or the compose config. Tracked
+    # changes are already gone after the reset; ignored files (like .env) are
+    # left alone on purpose.
+    git clean -fd >/dev/null
+    [ -z "$(git status --porcelain)" ] \
+        || fail "The working tree is not clean after pulling origin/main."
 }
 
 build() {
@@ -169,9 +167,10 @@ rollback() {
     docker rm -f mybudget-migrator >/dev/null 2>&1 || true
     $COMPOSE up -d --remove-orphans
 
-    if [ -n "${BACKUP_FILE:-}" ] && [ -f "${BACKUP_FILE}" ]; then
-        log "A database dump from before this deployment is at $BACKUP_FILE."
-        log "Restore it manually only if the previous release needs the older schema."
+    if [ -n "${BACKUP_FILE:-}" ]; then
+        log "A verified database dump from before this deployment is at $BACKUP_FILE"
+        log "in the $BACKUP_VOLUME volume. Restore it only if the previous release"
+        log "needs the older schema: CONFIRM_RESTORE=RESTORE ./scripts/restore.sh $BACKUP_FILE"
     fi
 
     fail "Rollback finished. Investigate before redeploying."
