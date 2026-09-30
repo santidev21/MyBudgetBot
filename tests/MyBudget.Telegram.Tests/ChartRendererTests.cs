@@ -15,7 +15,7 @@ public sealed class ChartRendererTests
     [Fact]
     public void A_chart_is_a_png_with_the_canvas_size_in_its_header()
     {
-        var png = SpendingChartRenderer.HorizontalBars([new ChartEntry(100, "100")]);
+        var png = SpendingChartRenderer.HorizontalBars([new ChartEntry(100, "100")], total: 100);
 
         png.Should().StartWith(PngSignature);
         ReadInt(png, 16).Should().Be(SpendingChartRenderer.Width);
@@ -39,18 +39,42 @@ public sealed class ChartRendererTests
     }
 
     [Fact]
-    public void Horizontal_bars_are_proportional_to_their_values()
+    public void A_bar_is_its_share_of_the_total_so_the_number_and_the_length_agree()
     {
-        var canvas = SpendingChartRenderer.DrawHorizontalBars([new ChartEntry(100), new ChartEntry(50)]);
+        // Three of a hundred must be 3 % of the row: the percentage the user reads is the
+        // length the user sees, not a fraction of the longest bar.
+        var canvas = SpendingChartRenderer.DrawHorizontalBars([new ChartEntry(3)], total: 100);
 
-        var firstRow = SpendingChartRenderer.Margin + (SpendingChartRenderer.BarHeight / 2);
-        var secondRow = firstRow + SpendingChartRenderer.RowHeight;
+        var available = SpendingChartRenderer.Width - (SpendingChartRenderer.Margin * 2);
+        var bar = ColouredPixelsInRow(canvas, BarRow(index: 0));
 
-        var longest = ColouredPixelsInRow(canvas, firstRow);
-        var half = ColouredPixelsInRow(canvas, secondRow);
+        ((double)bar).Should().BeApproximately(available * 0.03, 2.0);
+    }
+
+    [Fact]
+    public void Two_bars_keep_their_ratio_against_the_same_total()
+    {
+        var canvas = SpendingChartRenderer.DrawHorizontalBars(
+            [new ChartEntry(100), new ChartEntry(50)], total: 200);
+
+        var longest = ColouredPixelsInRow(canvas, BarRow(index: 0));
+        var half = ColouredPixelsInRow(canvas, BarRow(index: 1));
 
         half.Should().BeGreaterThan(0);
         ((double)half).Should().BeApproximately(longest / 2.0, 1.5);
+    }
+
+    [Fact]
+    public void The_name_and_the_numbers_sit_above_the_bar()
+    {
+        var canvas = SpendingChartRenderer.DrawHorizontalBars(
+            [new ChartEntry(50, "50 %", "1 Comida")], total: 100);
+
+        ColouredPixelsInRow(canvas, SpendingChartRenderer.Margin + 1)
+            .Should().BeGreaterThan(0, "the header line carries the name and the exact numbers");
+
+        ColouredPixelsInRow(canvas, SpendingChartRenderer.Margin + SpendingChartRenderer.BarOffsetInRow + 1)
+            .Should().BeGreaterThan(0, "the bar fills the row under them");
     }
 
     [Fact]
@@ -60,7 +84,7 @@ public sealed class ChartRendererTests
             .Select(index => new ChartEntry(index + 1))
             .ToList();
 
-        var png = SpendingChartRenderer.HorizontalBars(entries);
+        var png = SpendingChartRenderer.HorizontalBars(entries, total: 1000);
 
         ReadInt(png, 20).Should().Be(
             (SpendingChartRenderer.Margin * 2)
@@ -95,15 +119,50 @@ public sealed class ChartRendererTests
     }
 
     [Fact]
-    public void Text_the_font_does_not_know_draws_nothing()
+    public void A_category_name_is_drawn_letter_by_letter()
     {
-        // Category names live in the caption, not the image, so unknown glyphs are blank.
+        var canvas = new RgbCanvas(160, 16);
+        canvas.Fill(Rgb.White);
+
+        BitmapFont.Draw(canvas, "Mercado", 0, 0, 2, Rgb.Ink);
+
+        ColouredPixels(canvas).Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void An_accent_is_folded_away_instead_of_dropping_the_word()
+    {
+        BitmapFont.Measure("holá", scale: 2).Should().Be(BitmapFont.Measure("hola", scale: 2));
+
         var canvas = new RgbCanvas(64, 16);
         canvas.Fill(Rgb.White);
 
         BitmapFont.Draw(canvas, "holá", 0, 0, 2, Rgb.Ink);
 
+        ColouredPixels(canvas).Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void Characters_the_font_does_not_know_draw_nothing()
+    {
+        // An icon or another script leaves a blank; the exact name stays in the caption.
+        var canvas = new RgbCanvas(64, 16);
+        canvas.Fill(Rgb.White);
+
+        BitmapFont.Draw(canvas, "日本語", 0, 0, 2, Rgb.Ink);
+
         ColouredPixels(canvas).Should().Be(0);
+    }
+
+    [Fact]
+    public void A_name_that_does_not_fit_is_cut_with_two_dots()
+    {
+        var room = BitmapFont.Measure("abc", scale: 2);
+
+        var cut = BitmapFont.Truncate("una categoría muy larga", room, scale: 2);
+
+        BitmapFont.Measure(cut, scale: 2).Should().BeLessOrEqualTo(room);
+        cut.Should().EndWith("..");
     }
 
     [Fact]
@@ -116,6 +175,12 @@ public sealed class ChartRendererTests
 
         ColouredPixels(canvas).Should().BeGreaterThan(0);
     }
+
+    private static int BarRow(int index) =>
+        SpendingChartRenderer.Margin
+        + (index * SpendingChartRenderer.RowHeight)
+        + SpendingChartRenderer.BarOffsetInRow
+        + (SpendingChartRenderer.BarHeight / 2);
 
     private static int ColouredPixelsInRow(RgbCanvas canvas, int y)
     {

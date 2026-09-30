@@ -1,15 +1,19 @@
 namespace MyBudget.Telegram.Charts;
 
-/// <summary>One drawn value. The label is optional and drawn with the bitmap font.</summary>
-internal sealed record ChartEntry(long Value, string? Label = null);
+/// <summary>
+/// One drawn value. <c>Name</c> sits at the left of the row's header line, <c>Label</c> at its
+/// right edge, and the bar fills the row underneath.
+/// </summary>
+internal sealed record ChartEntry(long Value, string? Label = null, string? Name = null);
 
 /// <summary>
 /// Turns report numbers into a PNG.
 /// <para>
-/// Two shapes cover the product: horizontal bars for spending per category (the label is the
-/// amount, at the end of each bar) and vertical bars for spending per day (the label is the
-/// day number). Category names, month names and totals stay in the caption: the image is the
-/// visual comparison, the message is the exact data.
+/// Two shapes cover the product: horizontal bars for spending per category and vertical bars for
+/// spending per day. The horizontal bar is measured against the <c>total</c> it is given, never
+/// against the longest bar, so a row's length is literally that category's share of the month and
+/// two rows are comparable; the exact numbers travel in the row itself and in the caption, where
+/// the phone's font draws the icon and the accents.
 /// </para>
 /// </summary>
 internal static class SpendingChartRenderer
@@ -21,10 +25,22 @@ internal static class SpendingChartRenderer
 
     internal const int Margin = 28;
     internal const int BarHeight = 26;
-    internal const int RowHeight = 44;
+
+    /// <summary>Text on a horizontal row is drawn at twice the base glyph size.</summary>
+    internal const int LabelScale = 2;
+
+    internal const int NameLineHeight = BitmapFont.GlyphHeight * LabelScale;
+    internal const int NameGap = 4;
+
+    /// <summary>Where the bar starts inside its row: under the name and the numbers.</summary>
+    internal const int BarOffsetInRow = NameLineHeight + NameGap;
+
+    internal const int RowGap = 16;
+    internal const int RowHeight = BarOffsetInRow + BarHeight + RowGap;
     internal const int VerticalAreaHeight = 180;
     private const int VerticalLabelHeight = 18;
     private const int LabelGap = 16;
+    private const int MinimumBarWidth = 3;
 
     private static readonly Rgb[] Palette =
     [
@@ -38,13 +54,16 @@ internal static class SpendingChartRenderer
         new(138, 138, 78),
     ];
 
-    public static byte[] HorizontalBars(IReadOnlyList<ChartEntry> entries) =>
-        PngEncoder.Encode(DrawHorizontalBars(entries));
+    /// <param name="total">
+    /// What the bars are a share of: 100 % fills a row, so a 3 % category is 3 % of the row.
+    /// </param>
+    public static byte[] HorizontalBars(IReadOnlyList<ChartEntry> entries, long total) =>
+        PngEncoder.Encode(DrawHorizontalBars(entries, total));
 
     public static byte[] VerticalBars(IReadOnlyList<ChartEntry> entries) =>
         PngEncoder.Encode(DrawVerticalBars(entries));
 
-    internal static RgbCanvas DrawHorizontalBars(IReadOnlyList<ChartEntry> entries)
+    internal static RgbCanvas DrawHorizontalBars(IReadOnlyList<ChartEntry> entries, long total)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
@@ -57,32 +76,40 @@ internal static class SpendingChartRenderer
             return canvas;
         }
 
-        const int scale = 2;
-        var maximum = bars.Max(entry => entry.Value);
+        // One width for every row: a bar is a share of the whole row, so rows stay comparable
+        // no matter how long their labels are.
+        var available = Width - (Margin * 2);
 
         for (var index = 0; index < bars.Count; index++)
         {
             var entry = bars[index];
-            var label = entry.Label ?? string.Empty;
-            var labelWidth = BitmapFont.Measure(label, scale);
+            var rowTop = Margin + (index * RowHeight);
 
-            // The label owns the right edge; the bar grows in what is left of the row.
-            var available = Math.Max(0, Width - (Margin * 2) - labelWidth - LabelGap);
-            var barWidth = maximum > 0 ? (int)((decimal)entry.Value / maximum * available) : 0;
-            if (entry.Value > 0 && barWidth < 3)
+            var numbers = entry.Label ?? string.Empty;
+            var numbersWidth = BitmapFont.Measure(numbers, LabelScale);
+            var name = BitmapFont.Truncate(
+                entry.Name ?? string.Empty, available - numbersWidth - LabelGap, LabelScale);
+
+            // The name and the exact numbers share the header line, name at the left edge,
+            // numbers at the right edge.
+            BitmapFont.Draw(canvas, name, Margin, rowTop, LabelScale, Rgb.Ink);
+            BitmapFont.Draw(
+                canvas, numbers, Width - Margin - numbersWidth, rowTop, LabelScale, Rgb.Ink);
+
+            var barWidth = total > 0 ? (int)((decimal)entry.Value / total * available) : 0;
+            barWidth = Math.Clamp(barWidth, 0, available);
+
+            if (total > 0 && entry.Value > 0 && barWidth < MinimumBarWidth)
             {
-                barWidth = 3;
+                barWidth = MinimumBarWidth;
             }
 
-            var y = Margin + (index * RowHeight);
-            canvas.Rectangle(Margin, y, barWidth, BarHeight, Palette[index % Palette.Length]);
-            BitmapFont.Draw(
-                canvas,
-                label,
-                Width - Margin - labelWidth,
-                y + ((BarHeight - (BitmapFont.GlyphHeight * scale)) / 2),
-                scale,
-                Rgb.Ink);
+            canvas.Rectangle(
+                Margin,
+                rowTop + BarOffsetInRow,
+                barWidth,
+                BarHeight,
+                Palette[index % Palette.Length]);
         }
 
         return canvas;

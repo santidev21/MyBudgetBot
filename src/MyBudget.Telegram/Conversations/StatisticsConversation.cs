@@ -137,8 +137,10 @@ internal sealed class StatisticsConversation(
     }
 
     /// <summary>
-    /// The category bars are numbered and the amount and usage stay on the bar; the category
-    /// names, which the bitmap font cannot draw, go in a numbered legend under the chart.
+    /// Each row carries the category's name and the amount with its share of the month, and the
+    /// bar below fills the row in proportion to that share, so the number and the length always
+    /// agree. The budget detail stays in the numbered legend under the chart, where the phone's
+    /// font draws the icon and the accents.
     /// </summary>
     private async Task<(byte[] Png, string Caption)> BuildCategoryChartAsync(
         ConversationContext context,
@@ -149,6 +151,7 @@ internal sealed class StatisticsConversation(
         var currency = context.User.Currency;
         var summary = await reports.GetMonthlySummaryAsync(
             context.User.Id, period, cancellationToken);
+        var total = summary.TotalSpent;
 
         var lines = summary.Lines
             .Where(line => line.Spent > 0)
@@ -165,19 +168,24 @@ internal sealed class StatisticsConversation(
             var line = lines[index];
             var number = index + 1;
             var spent = moneyFormatter.Format(line.Spent, currency);
+            var share = total > 0 ? (line.Spent * 100m) / total : 0m;
+
+            entries.Add(new ChartEntry(
+                line.Spent,
+                $"{spent} ({moneyFormatter.FormatPercentage(share)})",
+                $"{number} {line.CategoryName}"));
+
             var label = $"{line.Icon} {line.CategoryName}";
 
             if (line.HasBudget)
             {
                 var budget = moneyFormatter.Format(line.Budget, currency);
                 var usage = moneyFormatter.FormatPercentage(line.UsagePercentage ?? 0m);
-                entries.Add(new ChartEntry(line.Spent, $"{number} {spent}/{budget} {usage}"));
                 legend.Add(messages.Get(
                     language, MessageKeys.StatisticsChartCategoryLegend, number, label, spent, budget, usage));
             }
             else
             {
-                entries.Add(new ChartEntry(line.Spent, $"{number} {spent}"));
                 legend.Add(messages.Get(
                     language, MessageKeys.StatisticsChartCategoryLegendNoBudget, number, label, spent));
             }
@@ -191,7 +199,7 @@ internal sealed class StatisticsConversation(
             caption += "\n\n" + string.Join("\n", legend);
         }
 
-        return (SpendingChartRenderer.HorizontalBars(entries), caption);
+        return (SpendingChartRenderer.HorizontalBars(entries, total), caption);
     }
 
     /// <summary>

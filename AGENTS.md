@@ -169,8 +169,11 @@ production.
 - Adding a menu section touches `MainMenu.ActionKeys`, the keyboard rows, the menu test and the
   router mapping.
 - Charts are hand-drawn (`RgbCanvas` + 5x7 bitmap font + PNG over `ZLibStream`) to avoid native
-  dependencies; unknown glyphs render blank, so names stay in the caption, and the text screens
-  always carry the exact numbers.
+  dependencies; the font folds accents (`á` renders as `a`) and leaves what it does not know
+  blank, so the icon and the exact name stay in the caption, where the phone's font draws them.
+  A horizontal bar is a share of the `total` it is given, never a fraction of the longest bar:
+  the percentage in the row is what the length shows, and two rows are comparable. The text
+  screens always carry the exact numbers.
 
 **Settings, budgets and routing**
 
@@ -211,8 +214,9 @@ the closing of the last month sent at 23:59 on the user's last local day, with t
 day as fallback; verified nightly backups;
 reproducible deploy. Settings erases everything and switches the daily reminder; a budget set
 once recurs every month with per-month overrides; the summary lists remaining budget and drills
-into each category's movements. **828 tests green**, build with zero warnings, `dotnet format`
-clean.
+into each category's movements. The category chart measures each bar as its share of the month
+and draws the category name; the breakdown has a way back. **835 tests green**, build with zero
+warnings, `dotnet format` clean.
 
 Next: CSV export of a date range's expenses, then seed categories and recurring-rule editing.
 The backlog and decisions are in [`docs/HANDOFF.md`](docs/HANDOFF.md).
