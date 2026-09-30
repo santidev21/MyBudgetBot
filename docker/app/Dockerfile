@@ -31,7 +31,7 @@ RUN dotnet publish src/MyBudget.Api/MyBudget.Api.csproj \
 #   * tzdata, which TimeZoneInfo needs to resolve America/Bogota at runtime.
 # Alpine needs both bolted on and every miss is a runtime formatting bug.
 # ---------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-bookworm-slim AS final
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
