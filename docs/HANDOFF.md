@@ -4,7 +4,7 @@ The working context is [`AGENTS.md`](../AGENTS.md); the architecture is
 [`TECHNICAL-DESIGN.md`](TECHNICAL-DESIGN.md). This file is only the next task's prompt and the
 decisions already taken for what comes after.
 
-## Done in this round (all verified, 828 tests green)
+## Done in this round (all verified, 835 tests green)
 
 **Scheduled-notification foundation**
 
@@ -54,11 +54,20 @@ decisions already taken for what comes after.
 
 **Statistics chart (category)**
 
-- The category chart now numbers each bar and labels it `$gastado/$presupuesto uso%`, and the
-  caption carries a numbered legend with the category names (`Statistics.ChartCategoryLegend*`).
-  It reads `GetMonthlySummaryAsync` for the per-category budget; the daily chart is unchanged.
-- `BitmapFont` gained `$` and `/` glyphs so the money and the separator are legible; category
-  names still stay in the caption because accented letters are not in the font.
+- Each row of the category chart now carries the number, the category name and
+  `$gasto ($share %)` on one line, with the bar underneath: the bar is that share of the month's
+  total (`SpendingChartRenderer.HorizontalBars(entries, total)`), so 3 % is 3 % of the row
+  instead of a fraction of the longest bar, which is what made a "3 %" bar look halfway. The
+  caption keeps a numbered legend with the icon and the budget
+  (`Statistics.ChartCategoryLegend*`), read from `GetMonthlySummaryAsync`; the daily chart is
+  unchanged.
+- `BitmapFont` gained `A-Z`, `a-z` and the punctuation a name needs, and folds accents before
+  drawing (`á` → `a`) because a 5x7 glyph cannot hold a diacritic. `BitmapFont.Truncate` cuts a
+  name that does not fit and marks the cut with `..`. Icons and other scripts still leave a
+  blank, which is why the exact name stays in the caption too.
+- The breakdown chooser ("📂 ¿Qué categoría quieres revisar?") ends in an "↩️ Volver" row that
+  hands off to the summary (`CategoryDetailConversation.BackToSummaryCallback`), so the flow has
+  an exit besides the persistent menu. It is present even when the month has no movements.
 
 **Daily reminder at 21:00 local**
 

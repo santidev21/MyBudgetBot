@@ -32,6 +32,9 @@ internal sealed class CategoryDetailConversation(
     private const string ExpensePrefix = CallbackPrefix + "exp:";
     private const string BackCallback = CallbackPrefix + "back";
 
+    /// <summary>Leaves the breakdown for the summary it was opened from.</summary>
+    internal const string BackToSummaryCallback = CallbackPrefix + "summary";
+
     private const string ChooseState = "choose";
     private const string MovementsState = "movements";
     private const int PageSize = 20;
@@ -50,6 +53,15 @@ internal sealed class CategoryDetailConversation(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)
     {
         var period = CurrentPeriod(context);
+
+        if (callback.Data == BackToSummaryCallback)
+        {
+            // The breakdown is a side screen of the summary; going back resumes it.
+            return new ConversationTurn([])
+            {
+                HandoffConversation = SummaryConversation.ConversationName,
+            };
+        }
 
         if (callback.Data.StartsWith(CategoryPrefix, StringComparison.Ordinal)
             && Guid.TryParse(callback.Data[CategoryPrefix.Length..], out var categoryId))
@@ -92,6 +104,9 @@ internal sealed class CategoryDetailConversation(
         var text = rows.Count == 0
             ? messages.Get(language, MessageKeys.BreakdownEmpty)
             : messages.Get(language, MessageKeys.BreakdownChoose);
+
+        // Without this row the only way out of the breakdown is the persistent menu.
+        rows.Add([new BotButton(messages.Get(language, MessageKeys.ButtonBack), BackToSummaryCallback)]);
 
         return new ConversationTurn([BotResponse.Message(text, BotKeyboard.Inline([.. rows]))])
         {

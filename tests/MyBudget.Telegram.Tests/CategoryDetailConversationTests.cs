@@ -103,4 +103,44 @@ public sealed class CategoryDetailConversationTests
         harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation
             .Should().Be(ExpensesConversation.ConversationName);
     }
+
+    [Fact]
+    public async Task The_chooser_always_offers_a_way_back_to_the_summary()
+    {
+        var harness = TelegramHarness.Build();
+        harness.ReportService
+            .GetStatisticsAsync(harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(new PeriodStatistics(
+                September, 700_000, 2, 30, 0, Shares(), [], [],
+                new PeriodComparison(September, September.Previous, 700_000, 0, true, false)));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, SummaryConversation.ConversationName, "summary"),
+            new IncomingCallback("cb", CategoryDetailConversation.OpenCallback),
+            CancellationToken.None);
+
+        var back = turn.Responses[0].Keyboard!.Rows[^1].Single();
+
+        back.CallbackData.Should().Be(CategoryDetailConversation.BackToSummaryCallback);
+        back.Text.Should().Be(harness.Messages.Get("es", MessageKeys.ButtonBack));
+    }
+
+    [Fact]
+    public async Task Going_back_from_the_chooser_resumes_the_summary()
+    {
+        var harness = TelegramHarness.Build();
+        harness.ReportService
+            .GetMonthlySummaryAsync(harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(new MonthlySummary(September, []));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, CategoryDetailConversation.ConversationName, "choose"),
+            new IncomingCallback("cb", CategoryDetailConversation.BackToSummaryCallback),
+            CancellationToken.None);
+
+        harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation
+            .Should().Be(SummaryConversation.ConversationName);
+        turn.Responses[0].Text.Should().StartWith(
+            harness.Messages.Get("es", MessageKeys.SummaryHeader, "septiembre 2026"));
+    }
 }
