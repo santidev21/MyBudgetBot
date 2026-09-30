@@ -56,7 +56,19 @@ docs/TECHNICAL-DESIGN.md
 docs/BACKUPS.md                # backup, verification and restore runbook
 docs/DEPLOYMENT.md             # deploy, rollback and operations
 docs/HANDOFF.md                # next task prompt and backlog
+docs/adr/                      # one file per irreversible decision
 ```
+
+## Documentation Policy
+
+Docs capture decisions and current state, never session narration.
+
+- **Allowed:** this file, `README`, `docs/TECHNICAL-DESIGN.md`, `docs/adr/NNN-*.md` (one decision:
+  context, options, decision, consequences), the runbooks (`BACKUPS`, `DEPLOYMENT`) and
+  `docs/HANDOFF.md`.
+- **Forbidden:** phase reports, progress logs, "what I did" narration and per-session summaries.
+  When a change needs a durable record, update the design doc or add an ADR — do not create a
+  report file. This applies to AI output too.
 
 ## Commands
 
