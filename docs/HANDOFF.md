@@ -27,10 +27,10 @@ day as fallback; verified nightly backups;
 reproducible deploy. Settings erases everything and switches the daily reminder; a budget set
 once recurs every month with per-month overrides; the summary lists remaining budget and drills
 into each category's movements. The category chart measures each bar as its share of the month
-and draws the category name; the breakdown has a way back. **835 tests green**, build with zero
+and draws the category name; the breakdown has a way back. **848 tests green**, build with zero
 warnings, `dotnet format` clean.
 
-## Done in this round (all verified, 835 tests green)
+## Done in this round (all verified, 848 tests green)
 
 **Scheduled-notification foundation**
 
@@ -64,6 +64,14 @@ warnings, `dotnet format` clean.
 - The "copy previous month" feature was retired everywhere: domain `CopyAllocationsFrom`,
   `IBudgetService.CopyPreviousMonthAsync`, `ClosingCopyHandler`, `ClosingCopyCallback`, the
   budget-screen button and the closing-message button, and their message keys.
+- Migration `20261001185217_BackfillBudgetDefaults` (SQL in `BudgetDefaultsBackfill`) repairs the
+  users who predate recurring budgets: it turns the latest allocation of each category into a
+  `budget_defaults` row, so a later month inherits it without a copy. It is idempotent and never
+  invents a budget for a month before the allocation.
+- `IBudgetService.PromoteMonthToDefaultsAsync` and the budget screen's "🔁 Aplicar todos los
+  meses" button turn the current month's overrides into the recurring default (keeping an
+  existing default's `effective_from`). Covered by `BudgetServiceTests`, `BudgetInheritanceTests`
+  and `CategoriesConversationBudgetTests`.
 
 **Summary and per-category breakdown**
 

@@ -68,6 +68,12 @@ jobs:
             "/d:sonar.token=$SONAR_TOKEN"
             "/d:sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml"
             "/d:sonar.cs.vstest.reportsPaths=**/TestResults/*.trx"
+            # EF Core migrations are scaffolding whose effect is proven by the
+            # integration tests, not by their own line coverage. Without this,
+            # the migrator line that applies a new migration is always at 0 %
+            # (the fixture migrates before coverage is attributed) and every
+            # migration PR would fail the new-code coverage gate.
+            "/d:sonar.coverage.exclusions=**/Persistence/Migrations/**,**/*.Designer.cs"
           )
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             args+=(

@@ -198,6 +198,29 @@ public sealed class ReportServiceTests
         statistics.AverageDaily.Should().Be(0);
     }
 
+    [Fact]
+    public async Task The_summary_of_the_next_month_includes_the_recurring_default()
+    {
+        var food = new BudgetCategory(UserId, "Comida", "🍔");
+        var october = new MonthPeriod(2026, 10);
+
+        // October has no row of its own: the budget set in September is what has to reach it.
+        _budgets.FindByPeriodAsync(UserId, october, Arg.Any<CancellationToken>())
+            .Returns((MonthlyBudget?)null);
+        _budgets.ListDefaultsAsync(UserId, Arg.Any<CancellationToken>())
+            .Returns([new BudgetDefault(UserId, food.Id, September, 1_000_000)]);
+        _expenseQueries.SumByCategoryAsync(UserId, Arg.Any<DateRange>(), Arg.Any<CancellationToken>())
+            .Returns(Array.Empty<CategoryTotal>());
+        _categories.ListAsync(UserId, true, Arg.Any<CancellationToken>()).Returns([food]);
+
+        var summary = await _service.GetMonthlySummaryAsync(UserId, october);
+
+        summary.TotalAllocated.Should().Be(1_000_000);
+        var line = summary.Lines.Single();
+        line.Budget.Should().Be(1_000_000);
+        line.Spent.Should().Be(0);
+    }
+
     private static Expense NewExpense(Guid categoryId, long amount, DateOnly date) =>
         new(UserId, categoryId, amount, "Algo", date, Today);
 }

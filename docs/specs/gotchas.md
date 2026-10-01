@@ -90,6 +90,12 @@ whenever a gotcha is learned or disproven.
   otherwise `CompleteAsync` would write a `user_id` that no longer exists and hit the FK.
 - The recurring budget is a fallback, not a copy: `budget_defaults.effective_from` stops a default
   from appearing in months before it existed, and a month's own row always wins.
+- Turning a month into a recurrence keeps the default's original `effective_from` (editing must
+  not make it apply to months it never covered) and leaves the override in place when the
+  default starts later, or the month would lose the allocation it is showing. The one-off
+  `BudgetDefaultsBackfill` takes the *latest* allocation of each category as the default, so it
+  never invents a budget for a month that had none, and `ON CONFLICT DO NOTHING` keeps it
+  idempotent.
 - A row referencing a category must be saved after the category exists in the same context: EF
   does not model the composite `(category_id, user_id)` foreign key, so `budget_defaults` (like
   `budget_alerts`) needs its own `SaveChanges`.

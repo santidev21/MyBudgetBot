@@ -166,8 +166,11 @@ monthly_budgets(user, 2026-10) ──< monthly_budget_categories(Market, 1_500_0
 - **The monthly total is derived** (`SUM`), never stored, never cached. At personal scale
   (tens of rows per month) this is a single index scan. A denormalised total would be a
   liability with no benefit.
-- **Rollover is explicit.** `GetOrCreate` creates an empty month. The bot offers "copy last
-  month's budget" as a deliberate action; nothing is copied silently.
+- **Rollover is a recurring default.** A budget set once becomes a `budget_defaults` row that
+  applies to every month from the one it was created in; a month with its own row overrides it.
+  A month therefore inherits the previous one without a copy, and the budget screen offers
+  "aplicar todos los meses" to turn the current month's overrides into the default. Nothing is
+  copied silently into a month that never had an allocation.
 - **Past months are immutable in the product**: budgets can be edited for the current and
   future months only. The database does not enforce that (it would block data repair), so
   the application layer does.
@@ -457,9 +460,9 @@ test proves the ambient culture is ignored.
 6. **Expense detail** — amount, description, category, date; edit, delete (with
    confirmation), back.
 7. **Categories** — create, rename, icon, aliases with conflict handling, activate/
-   deactivate, set this month's allocation, copy last month. Deletion is not offered;
-   deactivation is, with an explanation. Only the current month is editable, and the bot says
-   so rather than silently refusing; copying is always an explicit action.
+   deactivate, set this month's allocation, make it recur ("aplicar todos los meses"). Deletion
+   is not offered; deactivation is, with an explanation. Only the current month is editable, and
+   the bot says so rather than silently refusing.
 8. **Statistics** — by category with share, daily spending, largest expenses, average daily,
    period comparison that states when a period is incomplete.
 9. **Configuration** — language, time zone, currency (read-only until multi-currency),
@@ -478,10 +481,10 @@ test proves the ambient culture is ignored.
     recurring pass), and the announced thresholds are recorded so the bot never repeats itself.
 14. **Monthly closing** — on the user's first local day of a month, the bot sends the closing of
     the previous one: total spent, expense count, a comparison with the month before, the
-    biggest categories with text bars and, when the month was overspent, the amount. A button
-    copies the closed month's budget into the new one. The closing is claimed once per user and
-    month, so a restart cannot repeat it; a month with no spending and no budget is skipped, so
-    the bot never talks about nothing.
+    biggest categories with text bars and, when the month was overspent, the amount. The new
+    month inherits the budget through its recurring defaults, so no button is needed. The closing
+    is claimed once per user and month, so a restart cannot repeat it; a month with no spending
+    and no budget is skipped, so the bot never talks about nothing.
 
 ## 12. MVP implementation phases
 
@@ -491,7 +494,7 @@ test proves the ambient culture is ignored.
 | **1 Domain + persistence** | Entities, EF configurations, raw-SQL composite FKs, repositories, interceptor | Integration tests for constraints, user isolation, historical budgets — **done** |
 | **2 Money, dates, i18n** | Parser, formatter, compact parser, date parser, currency registry, message catalog | Parser corpus + property tests; ≥ 95 % coverage on money code — **done** (97,5 % money, 100 % dates) |
 | **3 Telegram plumbing** | Webhook, inbox idempotency, allowlist, advisory lock, conversation store and router, menu, onboarding | Local polling answers `/start`; duplicate update creates one row — **done** |
-| **4 Categories & budgets** | Category CRUD, aliases, allocations, copy previous month | History tests; flow tests — **done** |
+| **4 Categories & budgets** | Category CRUD, aliases, allocations, recurring and per-month budgets | History tests; flow tests — **done** |
 | **5 Expenses core** | Guided and compact entry, pending actions, confirmation, list, detail, edit, delete, undo | End-to-end flow tests — **done** |
 | **6 Matching** | Matcher, ambiguity, keyword learning, conflicts | Corpus including ambiguity; fuzzy off by default — **done** |
 | **7 Summary & statistics** | Dashboard, ranges, statistics, comparison | Snapshot tests of rendered messages — **done** |
@@ -673,8 +676,14 @@ flows append.
 Scheduled closings added: the exactly-once marker claimed with an upsert (integration, including
 the second pass that finds the claim taken), the local-first-day decision, the empty-month skip
 and the previous-month report in the application service, the verbatim closing render with its
-comparison and text bars, the scheduler pass that resolves the scoped service from a fresh scope,
-and the global copy-budget callback.
+comparison and text bars, and the scheduler pass that resolves the scoped service from a fresh
+scope.
+
+Budget inheritance added: a default written one month is read by the next (application merge and
+a real PostgreSQL round trip through the repositories), the one-off backfill turns the latest
+allocation of each category into a default without inventing one for an earlier month, running it
+twice does not duplicate a default, and promoting a month repeats it while a default that starts
+later is left untouched.
 
 The restore drill is operational rather than unit-tested: it ran against the local stack on
 2026-09-28 and its output and the corrupt-dump failure path are recorded in

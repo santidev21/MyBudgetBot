@@ -417,6 +417,9 @@
   <data name="Budget.ButtonAssign" xml:space="preserve">
     <value>✏️ Asignar</value>
   </data>
+  <data name="Budget.ButtonPromote" xml:space="preserve">
+    <value>🔁 Aplicar todos los meses</value>
+  </data>
   <data name="Budget.ChooseCategory" xml:space="preserve">
     <value>¿A qué categoría le asigno presupuesto?</value>
   </data>
@@ -431,6 +434,9 @@
   </data>
   <data name="Budget.SavedRecurring" xml:space="preserve">
     <value>✅ Asigné {0} a {1} para todos los meses.</value>
+  </data>
+  <data name="Budget.Promoted" xml:space="preserve">
+    <value>✅ Listo, este presupuesto se repite cada mes desde ahora.</value>
   </data>
   <data name="Budget.ScopePrompt" xml:space="preserve">
     <value>¿Aplica solo a {0} o a todos los meses?</value>
