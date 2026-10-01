@@ -1,8 +1,34 @@
 # Handoff — next task and backlog
 
 The working context is [`AGENTS.md`](../AGENTS.md); the architecture is
-[`TECHNICAL-DESIGN.md`](TECHNICAL-DESIGN.md). This file is only the next task's prompt and the
-decisions already taken for what comes after.
+[`TECHNICAL-DESIGN.md`](TECHNICAL-DESIGN.md). This file holds the project's current status,
+the next task's prompt and the decisions already taken for what comes after.
+
+## Project status
+
+| Phase | What | State |
+|---|---|---|
+| 0–1 | Foundation; domain + schema, constraints, repositories | done |
+| 2 | Money, dates, i18n: parsers, formatter, catalog | done |
+| 3 | Telegram plumbing: webhook, inbox, allowlist, conversations, onboarding | done |
+| 4 | Categories and monthly budgets | done |
+| 5 | Expenses: guided and compact entry, edit, delete, history | done |
+| 6 | Category matching and keyword learning | done |
+| 7 | Summary, range history and statistics | done |
+| 8 | Hardening: verified backups, runbook, rate limits, deploy | done |
+| 9 | Recurring expenses, spending charts, budget alerts, scheduled summaries | done |
+| 10 | Settings (data erasure, reminder switch), recurring budget, per-category breakdown, numbered category chart, daily reminder, 23:59 monthly closing | done |
+
+Verified end to end through Telegram: categories and budgets; guided and compact expenses with
+suggestion, keyword learning, edit, delete and undo; recurring rules applied by a scheduler; 80 %
+and 100 % budget alerts; month summary, range history, statistics and category/daily charts;
+the closing of the last month sent at 23:59 on the user's last local day, with the first local
+day as fallback; verified nightly backups;
+reproducible deploy. Settings erases everything and switches the daily reminder; a budget set
+once recurs every month with per-month overrides; the summary lists remaining budget and drills
+into each category's movements. The category chart measures each bar as its share of the month
+and draws the category name; the breakdown has a way back. **835 tests green**, build with zero
+warnings, `dotnet format` clean.
 
 ## Done in this round (all verified, 835 tests green)
 
