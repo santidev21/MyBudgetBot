@@ -721,7 +721,7 @@ The implementation lives in `scripts/`, the runbook in [`BACKUPS.md`](BACKUPS.md
 | Single VPS is a single point of failure | High | Verified off-site backups, documented restore, restart policies, healthchecks; the risk is accepted explicitly |
 | Backup exists but cannot be restored | High | Automated weekly restore into a scratch database with sanity checks and an alert on failure |
 | Secret leakage | High | Environment-only secrets, redaction, CI scans, ignore files |
-| EF Core mis-models aggregate-created records | Medium | Store-generated keys for child records; documented in `AGENTS.md`; covered by tests |
+| EF Core mis-models aggregate-created records | Medium | Store-generated keys for child records; documented in `docs/specs/gotchas.md`; covered by tests |
 | Globalization drift in `es-CO` output | Medium | Explicit `NumberFormatInfo`; Debian image with full ICU |
 | Time-zone regressions in month boundaries | High | `ExpenseDate` is a calendar date; boundary tests; no hardcoded offsets |
 | Scope creep into phase-9 features | High (schedule) | Phase gates; nothing starts without a real need |
