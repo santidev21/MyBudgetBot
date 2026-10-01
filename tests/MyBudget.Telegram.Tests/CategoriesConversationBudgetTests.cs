@@ -237,4 +237,61 @@ public sealed class CategoriesConversationBudgetTests
         turn.Responses.Should().Contain(response =>
             response.Text == harness.Messages.Get("es", MessageKeys.BudgetNoCategories));
     }
+
+    [Fact]
+    public async Task The_budget_screen_offers_to_make_the_month_recurring()
+    {
+        var harness = TelegramHarness.Build();
+        StubMonth(harness, new MonthlyBudgetView(
+            September,
+            [new MonthlyBudgetLine(Guid.NewGuid(), "Mercado", "🛒", 500_000, IsActive: true)]));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "menu", new CategoriesPayload()),
+            new IncomingCallback("cb", "cats:budget"),
+            CancellationToken.None);
+
+        var buttons = turn.Responses.Last().Keyboard!.Rows.SelectMany(row => row).ToList();
+        buttons.Should().Contain(button =>
+            button.CallbackData == "cats:budget:promote"
+            && button.Text == harness.Messages.Get("es", MessageKeys.BudgetButtonPromote));
+    }
+
+    [Fact]
+    public async Task A_month_that_already_recurs_has_nothing_to_promote()
+    {
+        var harness = TelegramHarness.Build();
+        StubMonth(harness, new MonthlyBudgetView(
+            September,
+            [new MonthlyBudgetLine(Guid.NewGuid(), "Vivienda", "🏠", 700_000, IsActive: true, IsRecurring: true)]));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "menu", new CategoriesPayload()),
+            new IncomingCallback("cb", "cats:budget"),
+            CancellationToken.None);
+
+        var buttons = turn.Responses.Last().Keyboard!.Rows.SelectMany(row => row).ToList();
+        buttons.Should().NotContain(button => button.CallbackData == "cats:budget:promote");
+    }
+
+    [Fact]
+    public async Task Promoting_turns_the_month_into_recurring_and_confirms_it()
+    {
+        var harness = TelegramHarness.Build();
+        StubMonth(harness, new MonthlyBudgetView(September, []));
+        harness.BudgetService
+            .PromoteMonthToDefaultsAsync(
+                Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new BudgetPromotionResult(BudgetWriteStatus.Saved, 3)));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "budget", new CategoriesPayload()),
+            new IncomingCallback("cb", "cats:budget:promote"),
+            CancellationToken.None);
+
+        await harness.BudgetService.Received(1).PromoteMonthToDefaultsAsync(
+            harness.User.Id, September, Today, Arg.Any<CancellationToken>());
+        turn.Responses.Should().Contain(response =>
+            response.Text == harness.Messages.Get("es", MessageKeys.BudgetPromoted));
+    }
 }

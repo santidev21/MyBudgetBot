@@ -267,4 +267,86 @@ public sealed class BudgetServiceTests
 
         result.Saved.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Promoting_a_month_creates_defaults_from_that_month()
+    {
+        var category = new BudgetCategory(UserId, "Mercado");
+        var budget = new MonthlyBudget(UserId, September);
+        budget.SetAllocation(category.Id, 300_000);
+        _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>()).Returns(budget);
+
+        var result = await _service.PromoteMonthToDefaultsAsync(UserId, September, Today);
+
+        result.Saved.Should().BeTrue();
+        result.PromotedCount.Should().Be(1);
+        _budgets.Received(1).AddDefault(Arg.Is<BudgetDefault>(created =>
+            created.CategoryId == category.Id
+            && created.Amount == 300_000
+            && created.EffectiveFrom == September));
+        budget.Allocations.Should().BeEmpty();
+        await _unitOfWork.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Promoting_keeps_an_existing_defaults_effective_from()
+    {
+        var category = new BudgetCategory(UserId, "Mercado");
+        var existing = new BudgetDefault(UserId, category.Id, September, 300_000);
+        var budget = new MonthlyBudget(UserId, October);
+        budget.SetAllocation(category.Id, 500_000);
+        _budgets.FindByPeriodAsync(UserId, October, Arg.Any<CancellationToken>()).Returns(budget);
+        _budgets.FindDefaultAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(existing);
+
+        var result = await _service.PromoteMonthToDefaultsAsync(UserId, October, Today);
+
+        result.PromotedCount.Should().Be(1);
+        existing.Amount.Should().Be(500_000);
+        existing.EffectiveFrom.Should().Be(September);
+        budget.Allocations.Should().BeEmpty();
+        _budgets.DidNotReceive().AddDefault(Arg.Any<BudgetDefault>());
+    }
+
+    [Fact]
+    public async Task Promoting_leaves_a_default_that_starts_later_untouched()
+    {
+        var category = new BudgetCategory(UserId, "Mercado");
+        var future = new BudgetDefault(UserId, category.Id, new MonthPeriod(2026, 11), 300_000);
+        var budget = new MonthlyBudget(UserId, October);
+        budget.SetAllocation(category.Id, 500_000);
+        _budgets.FindByPeriodAsync(UserId, October, Arg.Any<CancellationToken>()).Returns(budget);
+        _budgets.FindDefaultAsync(UserId, category.Id, Arg.Any<CancellationToken>()).Returns(future);
+
+        var result = await _service.PromoteMonthToDefaultsAsync(UserId, October, Today);
+
+        result.PromotedCount.Should().Be(0);
+        future.Amount.Should().Be(300_000);
+        future.EffectiveFrom.Should().Be(new MonthPeriod(2026, 11));
+
+        // The override has to stay, or October would lose the allocation it is showing.
+        budget.Allocations.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Promoting_a_month_without_overrides_promotes_nothing()
+    {
+        _budgets.FindByPeriodAsync(UserId, September, Arg.Any<CancellationToken>())
+            .Returns((MonthlyBudget?)null);
+
+        var result = await _service.PromoteMonthToDefaultsAsync(UserId, September, Today);
+
+        result.Saved.Should().BeTrue();
+        result.PromotedCount.Should().Be(0);
+        _budgets.DidNotReceive().AddDefault(Arg.Any<BudgetDefault>());
+    }
+
+    [Fact]
+    public async Task Promoting_a_past_month_is_refused_with_a_reason()
+    {
+        var result = await _service.PromoteMonthToDefaultsAsync(UserId, August, Today);
+
+        result.Status.Should().Be(BudgetWriteStatus.PastMonth);
+        result.PromotedCount.Should().Be(0);
+        await _unitOfWork.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
+    }
 }

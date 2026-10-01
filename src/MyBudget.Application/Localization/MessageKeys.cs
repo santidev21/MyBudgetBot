@@ -155,11 +155,13 @@ public static class MessageKeys
     public const string BudgetLineRecurring = "Budget.LineRecurring";
     public const string BudgetTotal = "Budget.Total";
     public const string BudgetButtonAssign = "Budget.ButtonAssign";
+    public const string BudgetButtonPromote = "Budget.ButtonPromote";
     public const string BudgetChooseCategory = "Budget.ChooseCategory";
     public const string BudgetAmountPrompt = "Budget.AmountPrompt";
     public const string BudgetAmountInvalid = "Budget.AmountInvalid";
     public const string BudgetSaved = "Budget.Saved";
     public const string BudgetSavedRecurring = "Budget.SavedRecurring";
+    public const string BudgetPromoted = "Budget.Promoted";
     public const string BudgetScopePrompt = "Budget.ScopePrompt";
     public const string BudgetScopeMonth = "Budget.ScopeMonth";
     public const string BudgetScopeAllMonths = "Budget.ScopeAllMonths";
@@ -409,11 +411,13 @@ public static class MessageKeys
         BudgetLineRecurring,
         BudgetTotal,
         BudgetButtonAssign,
+        BudgetButtonPromote,
         BudgetChooseCategory,
         BudgetAmountPrompt,
         BudgetAmountInvalid,
         BudgetSaved,
         BudgetSavedRecurring,
+        BudgetPromoted,
         BudgetScopePrompt,
         BudgetScopeMonth,
         BudgetScopeAllMonths,

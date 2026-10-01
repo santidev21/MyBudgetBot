@@ -20,6 +20,7 @@ internal sealed partial class CategoriesConversation
 {
     private const string BudgetCallback = CallbackPrefix + "budget";
     private const string BudgetAssignCallback = CallbackPrefix + "budget:assign";
+    private const string BudgetPromoteCallback = CallbackPrefix + "budget:promote";
     private const string BudgetSetPrefix = CallbackPrefix + "budget:set:";
     private const string BudgetScopeMonthCallback = CallbackPrefix + "budget:scope:month";
     private const string BudgetScopeAllCallback = CallbackPrefix + "budget:scope:all";
@@ -63,11 +64,25 @@ internal sealed partial class CategoriesConversation
                 moneyFormatter.Format(view.TotalAllocated, context.User.Currency));
         }
 
-        var keyboard = BotKeyboard.Inline(
-        [
-            [new BotButton(messages.Get(language, MessageKeys.BudgetButtonAssign), BudgetAssignCallback)],
-            [new BotButton(messages.Get(language, MessageKeys.CategoryButtonBack), ListCallback)],
-        ]);
+        var rows = new List<BotButton[]>
+        {
+            new[] { new BotButton(messages.Get(language, MessageKeys.BudgetButtonAssign), BudgetAssignCallback) },
+        };
+
+        // Only offer the promotion when there is something to promote: a month that already
+        // reads its recurring defaults has nothing to make recur.
+        if (view.Lines.Any(line => line.Amount > 0 && !line.IsRecurring))
+        {
+            rows.Add(new[]
+            {
+                new BotButton(
+                    messages.Get(language, MessageKeys.BudgetButtonPromote), BudgetPromoteCallback),
+            });
+        }
+
+        rows.Add([new BotButton(messages.Get(language, MessageKeys.CategoryButtonBack), ListCallback)]);
+
+        var keyboard = BotKeyboard.Inline([.. rows]);
 
         var responses = new List<BotResponse>(notices) { BotResponse.Message(text, keyboard) };
 
@@ -212,6 +227,19 @@ internal sealed partial class CategoriesConversation
         if (data == BudgetAssignCallback)
         {
             return await BuildBudgetCategoryPickerAsync(context, cancellationToken, []);
+        }
+
+        if (data == BudgetPromoteCallback)
+        {
+            var result = await budgets.PromoteMonthToDefaultsAsync(
+                context.User.Id, CurrentPeriod(context), localDate.Today(context.User.TimeZone),
+                cancellationToken);
+
+            var notice = result.Status == BudgetWriteStatus.PastMonth
+                ? Said(context, MessageKeys.BudgetPastMonth)
+                : Said(context, MessageKeys.BudgetPromoted);
+
+            return await BuildBudgetScreenAsync(context, cancellationToken, [notice]);
         }
 
         if (data == BudgetScopeMonthCallback || data == BudgetScopeAllCallback)

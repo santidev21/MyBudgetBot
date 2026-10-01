@@ -59,6 +59,17 @@ public sealed record BudgetWriteResult(BudgetWriteStatus Status, MonthlyBudget? 
 }
 
 /// <summary>
+/// The outcome of turning a month's explicit allocations into recurring defaults.
+/// <see cref="PromotedCount"/> is how many categories were made to recur: zero when the month
+/// had no overrides, or when every one of them was already covered by a default that starts
+/// after the month.
+/// </summary>
+public sealed record BudgetPromotionResult(BudgetWriteStatus Status, int PromotedCount)
+{
+    public bool Saved => Status == BudgetWriteStatus.Saved;
+}
+
+/// <summary>
 /// Monthly budget management, always for the current or a future month.
 /// <para>
 /// The budget of a past month is immutable in the product. The database does not enforce that
@@ -92,6 +103,15 @@ public interface IBudgetService
     Task<BudgetWriteResult> RemoveAllocationAsync(
         Guid userId, MonthPeriod period, Guid categoryId, DateOnly today,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Promotes every explicit allocation of the month into a recurring default, so later months
+    /// inherit the budget without an override of their own. A default that already exists keeps
+    /// the month it started; the month's own rows are cleared so it reads the default like any
+    /// other month. A past month is refused with a reason.
+    /// </summary>
+    Task<BudgetPromotionResult> PromoteMonthToDefaultsAsync(
+        Guid userId, MonthPeriod period, DateOnly today, CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -206,6 +226,51 @@ public sealed class BudgetService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return BudgetWriteResult.Ok(budget);
+    }
+
+    public async Task<BudgetPromotionResult> PromoteMonthToDefaultsAsync(
+        Guid userId, MonthPeriod period, DateOnly today, CancellationToken cancellationToken = default)
+    {
+        if (IsPast(period, today))
+        {
+            return new BudgetPromotionResult(BudgetWriteStatus.PastMonth, 0);
+        }
+
+        var budget = await budgets.FindByPeriodAsync(userId, period, cancellationToken);
+        if (budget is null || budget.Allocations.Count == 0)
+        {
+            return new BudgetPromotionResult(BudgetWriteStatus.Saved, 0);
+        }
+
+        var promoted = 0;
+        foreach (var allocation in budget.Allocations.ToList())
+        {
+            var existing = await budgets.FindDefaultAsync(userId, allocation.CategoryId, cancellationToken);
+
+            if (existing is null)
+            {
+                budgets.AddDefault(new BudgetDefault(userId, allocation.CategoryId, period, allocation.Amount));
+            }
+            else if (!period.IsBefore(existing.EffectiveFrom))
+            {
+                // Editing keeps the month the default took effect: it must not start applying to
+                // months it never covered.
+                existing.ChangeAmount(allocation.Amount);
+            }
+            else
+            {
+                // The default starts after this month, so it does not cover it. The override has
+                // to stay, or the month would lose the allocation it is showing.
+                continue;
+            }
+
+            // The month now reads the default, exactly like every month after it.
+            budget.RemoveAllocation(allocation.CategoryId);
+            promoted++;
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new BudgetPromotionResult(BudgetWriteStatus.Saved, promoted);
     }
 
     private static bool IsPast(MonthPeriod period, DateOnly today) =>

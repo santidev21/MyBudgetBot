@@ -56,8 +56,11 @@ public sealed class HistoricalBudgetTests(DatabaseFixture fixture) : DatabaseTes
     }
 
     [Fact]
-    public async Task A_later_month_does_not_inherit_the_previous_month_automatically()
+    public async Task An_explicit_month_allocation_is_a_snapshot_and_is_not_copied()
     {
+        // A storage-level guarantee, not the product rule: no row is materialised for October.
+        // A later month inherits a budget through budget_defaults (see BudgetInheritanceTests),
+        // never by silently copying another month's override into this month's table.
         await using var context = CreateContext();
         var user = TestData.NewUser();
         var category = TestData.NewCategory(user.Id, "Mercado");
