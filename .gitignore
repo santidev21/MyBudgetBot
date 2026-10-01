@@ -34,3 +34,6 @@ Thumbs.db
 
 # CodeGraph local index
 .codegraph/
+
+# SonarScanner for .NET working directory
+.sonarqube/

@@ -1,0 +1,100 @@
+name: SonarCloud
+
+# SonarCloud analysis (Clean as You Code): the "Sonar way" Quality Gate is
+# evaluated on NEW CODE only.
+#
+# Design notes:
+# - `sonar.qualitygate.wait=true` is set for pull_request events ONLY: the gate
+#   then fails this job when new code introduces issues. On the very first push
+#   to main the whole codebase counts as new code (baseline), so blocking there
+#   would fail on pre-existing debt by design.
+# - The scanner does not auto-detect GitHub Actions, so PR parameters are passed
+#   explicitly below.
+# - The analysis build passes TreatWarningsAsErrors=false: SonarScanner injects
+#   its own Roslyn analyzers for the duration of this build, and their rule
+#   warnings must not fail it. The zero-warnings gate itself is NOT weakened:
+#   it still runs in ci.yml (build-and-test job), which does not run the scanner.
+#   The SonarAnalyzer NuGet package remains out of the solution by design.
+# - Skipped for Dependabot and fork PRs: repository secrets are not available to
+#   those events, so the job would fail without a token.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud analysis
+    runs-on: ubuntu-latest
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: SonarCloud needs blame data to decide which lines are
+          # "new code" for the Quality Gate.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install SonarScanner
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Restore
+        run: dotnet restore MyBudget.sln
+
+      - name: Begin analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          PR_KEY: ${{ github.event.pullrequest.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          args=(
+            /k:santidev21_MyBudgetBot
+            /o:santidev21
+            "/d:sonar.token=$SONAR_TOKEN"
+            "/d:sonar.cs.opencover.reportsPaths=**/coverage.opencover.xml"
+            "/d:sonar.cs.vstest.reportsPaths=**/TestResults/*.trx"
+          )
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            args+=(
+              "/d:sonar.pullrequest.key=$PR_KEY"
+              "/d:sonar.pullrequest.branch=$PR_BRANCH"
+              "/d:sonar.pullrequest.base=$PR_BASE"
+              /d:sonar.qualitygate.wait=true
+            )
+          fi
+          dotnet sonarscanner begin "${args[@]}"
+
+      - name: Build
+        # See the header note: scoped to this analysis build only.
+        run: dotnet build MyBudget.sln --no-restore --configuration Release -p:TreatWarningsAsErrors=false
+
+      # Integration tests start a real PostgreSQL container via Testcontainers;
+      # Docker is available on the GitHub-hosted runner (same as in ci.yml).
+      - name: Test
+        run: >
+          dotnet test MyBudget.sln
+          --no-build
+          --configuration Release
+          --logger "trx;LogFileName=results.trx"
+          --collect:"XPlat Code Coverage"
+          --settings coverlet.runsettings
+
+      - name: End analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end "/d:sonar.token=$SONAR_TOKEN"
