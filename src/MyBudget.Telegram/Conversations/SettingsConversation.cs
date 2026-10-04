@@ -33,9 +33,10 @@ internal sealed class SettingsConversation(
         ConversationContext context, CancellationToken cancellationToken) =>
         Task.FromResult(Build(context));
 
-    public Task<ConversationTurn> HandleTextAsync(
+    // The settings screen only owns its toggle callbacks: free text passes through it.
+    public Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken) =>
-        Task.FromResult(Build(context));
+        Task.FromResult<ConversationTurn?>(null);
 
     public async Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)

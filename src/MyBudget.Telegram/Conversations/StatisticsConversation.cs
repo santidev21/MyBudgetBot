@@ -39,9 +39,10 @@ internal sealed class StatisticsConversation(
         ConversationContext context, CancellationToken cancellationToken) =>
         BuildAsync(context, new ReportingPayload(), cancellationToken);
 
-    public Task<ConversationTurn> HandleTextAsync(
+    // The report only owns its navigation callbacks: free text passes through it.
+    public Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken) =>
-        BuildAsync(context, ReportingPayload.Parse(context.Conversation?.Payload), cancellationToken);
+        Task.FromResult<ConversationTurn?>(null);
 
     public async Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)

@@ -52,11 +52,13 @@ internal sealed partial class CategoriesConversation(
         ConversationContext context, CancellationToken cancellationToken) =>
         BuildListAsync(context, cancellationToken, []);
 
-    public async Task<ConversationTurn> HandleTextAsync(
+    public async Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
     {
         var payload = CategoriesPayload.Parse(context.Conversation?.Payload);
 
+        // Only the states that wait for a typed value own the text; the list, the detail and the
+        // budget scope are navigated with buttons, so free text passes through them.
         return context.CurrentState switch
         {
             AwaitingNameState => await HandleNameAsync(context, text.Text, cancellationToken),
@@ -70,8 +72,7 @@ internal sealed partial class CategoriesConversation(
                 context, payload, text.Text, cancellationToken),
             AwaitingBudgetAmountState => await HandleBudgetAmountAsync(
                 context, payload, text.Text, cancellationToken),
-            BudgetScopeState => BuildScopePrompt(context, payload),
-            _ => await BuildListAsync(context, cancellationToken, []),
+            _ => null,
         };
     }
 

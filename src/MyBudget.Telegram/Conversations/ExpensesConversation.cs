@@ -77,17 +77,18 @@ internal sealed class ExpensesConversation(
             ? BuildDetailAsync(context, expenseId, [], cancellationToken)
             : StartAsync(context, cancellationToken);
 
-    public Task<ConversationTurn> HandleTextAsync(
+    public async Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
     {
         var payload = ExpensesPayload.Parse(context.Conversation?.Payload);
 
+        // Only the edit states wait for typed values; the list and the detail are button-driven.
         return context.CurrentState switch
         {
-            EditAmountState => HandleEditAmountAsync(context, payload, text.Text, cancellationToken),
-            EditDescriptionState => HandleEditDescriptionAsync(context, payload, text.Text, cancellationToken),
-            EditDateState => HandleEditDateAsync(context, payload, text.Text, cancellationToken),
-            _ => BuildListAsync(context, [], cancellationToken),
+            EditAmountState => await HandleEditAmountAsync(context, payload, text.Text, cancellationToken),
+            EditDescriptionState => await HandleEditDescriptionAsync(context, payload, text.Text, cancellationToken),
+            EditDateState => await HandleEditDateAsync(context, payload, text.Text, cancellationToken),
+            _ => null,
         };
     }
 

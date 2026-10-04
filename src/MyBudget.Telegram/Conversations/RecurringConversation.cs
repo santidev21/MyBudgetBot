@@ -56,17 +56,18 @@ internal sealed class RecurringConversation(
         ConversationContext context, CancellationToken cancellationToken) =>
         ListTurnAsync(context, [], cancellationToken);
 
-    public async Task<ConversationTurn> HandleTextAsync(
+    public async Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
     {
         var payload = RecurringPayload.Parse(context.Conversation?.Payload);
 
+        // Only the creation states wait for typed values; the list and the detail are button-driven.
         return context.CurrentState switch
         {
             AmountState => HandleAmount(context, payload, text.Text),
             DescriptionState => await HandleDescriptionAsync(context, payload, text.Text, cancellationToken),
             DayState => HandleDay(context, payload, text.Text),
-            _ => await ListTurnAsync(context, [], cancellationToken),
+            _ => null,
         };
     }
 

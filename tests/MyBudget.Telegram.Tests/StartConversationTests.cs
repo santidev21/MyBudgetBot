@@ -75,7 +75,7 @@ public sealed class StartConversationTests
             CancellationToken.None);
 
         harness.User.TimeZone.Should().Be("America/Argentina/Buenos_Aires");
-        turn.Completed.Should().BeTrue();
+        turn!.Completed.Should().BeTrue();
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class StartConversationTests
 
         harness.User.TimeZone.Should().Be("America/Bogota", "the default must survive an invalid answer");
         harness.UnitOfWork.SaveCount.Should().Be(0);
-        turn.NextState.Should().Be("awaiting-custom-timezone");
+        turn!.NextState.Should().Be("awaiting-custom-timezone");
         turn.Responses.Should().HaveCount(2);
         turn.Responses[0].Text.Should().Be(harness.Messages.Get("es", MessageKeys.OnboardingTimezoneCustomInvalid));
     }

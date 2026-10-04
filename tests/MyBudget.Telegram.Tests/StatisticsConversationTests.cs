@@ -3,6 +3,7 @@ using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Reporting;
 using MyBudget.Domain.Budgets;
+using MyBudget.Domain.Categories;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Tests.Fakes;
 using NSubstitute;
@@ -277,5 +278,26 @@ public sealed class StatisticsConversationTests
 
         turn.Responses[0].Photo.Should().BeNull();
         turn.Responses[0].Text.Should().Contain("No hay gastos registrados en este mes.");
+    }
+
+    [Fact]
+    public async Task A_compact_expense_typed_while_the_statistics_are_on_screen_is_recorded()
+    {
+        var harness = TelegramHarness.Build();
+        var food = new BudgetCategory(harness.User.Id, "Comida", "🍔");
+        harness.CategoryService
+            .ListAsync(harness.User.Id, false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetCategory>>([food]));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness, September, "statistics"),
+            "115509 carnes colanta",
+            CancellationToken.None);
+
+        // The statistics screen does not swallow the message: it becomes the expense flow.
+        turn.NextState.Should().Be("category");
+        harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation.Should().Be("expense");
+        await harness.ReportService.DidNotReceive().GetStatisticsAsync(
+            Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<DateOnly>(), Arg.Any<CancellationToken>());
     }
 }

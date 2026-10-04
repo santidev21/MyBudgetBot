@@ -56,24 +56,48 @@ internal sealed class ConversationRouter(
         if (ActiveConversation(context) is { } active)
         {
             var turn = await active.HandleTextAsync(context, new IncomingText(text), cancellationToken);
-            await PersistAsync(context, active.Name, turn, cancellationToken);
-            return turn;
+
+            if (turn is not null)
+            {
+                await PersistAsync(context, active.Name, turn, cancellationToken);
+                return turn;
+            }
+
+            // A screen that only owns callbacks (a report, a list, the settings) returns null for
+            // free text: drop its state and fall through so the message is not swallowed.
+            await store.ClearAsync(context.User.Id, cancellationToken);
         }
 
         // Free text with nothing active is a compact entry: "35.000 verduras" becomes the same
         // confirmation. Text that carries no amount is not an entry and falls through to help.
-        var compact = compactParser.Parse(text, context.User.Currency);
-        if (compact.Outcome != CompactExpenseOutcome.Unparsed
-            && Find(ExpenseConversation.ConversationName) is IExpenseEntry entry)
+        if (await TryStartCompactAsync(context, text, cancellationToken) is { } entryTurn)
         {
-            await store.ClearAsync(context.User.Id, cancellationToken);
-            var fresh = context with { Conversation = null };
-            var turn = await entry.StartFromCompactAsync(fresh, compact, cancellationToken);
-            await PersistAsync(fresh, ExpenseConversation.ConversationName, turn, cancellationToken);
-            return turn;
+            return entryTurn;
         }
 
         return Finished(HelpTurn(context));
+    }
+
+    /// <summary>
+    /// Starts the expense flow from a free-text compact entry. Returns <c>null</c> when the text
+    /// carries no amount, so the caller falls through to the active flow or to help.
+    /// </summary>
+    private async Task<ConversationTurn?> TryStartCompactAsync(
+        ConversationContext context, string text, CancellationToken cancellationToken)
+    {
+        var compact = compactParser.Parse(text, context.User.Currency);
+
+        if (compact.Outcome == CompactExpenseOutcome.Unparsed
+            || Find(ExpenseConversation.ConversationName) is not IExpenseEntry entry)
+        {
+            return null;
+        }
+
+        await store.ClearAsync(context.User.Id, cancellationToken);
+        var fresh = context with { Conversation = null };
+        var turn = await entry.StartFromCompactAsync(fresh, compact, cancellationToken);
+        await PersistAsync(fresh, ExpenseConversation.ConversationName, turn, cancellationToken);
+        return turn;
     }
 
     public async Task<ConversationTurn> RouteCallbackAsync(

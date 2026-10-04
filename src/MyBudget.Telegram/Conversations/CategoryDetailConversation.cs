@@ -45,9 +45,10 @@ internal sealed class CategoryDetailConversation(
         ConversationContext context, CancellationToken cancellationToken) =>
         BuildChooserAsync(context, cancellationToken);
 
-    public Task<ConversationTurn> HandleTextAsync(
+    // The breakdown only owns its navigation callbacks: free text passes through it.
+    public Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken) =>
-        BuildChooserAsync(context, cancellationToken);
+        Task.FromResult<ConversationTurn?>(null);
 
     public async Task<ConversationTurn> HandleCallbackAsync(
         ConversationContext context, IncomingCallback callback, CancellationToken cancellationToken)

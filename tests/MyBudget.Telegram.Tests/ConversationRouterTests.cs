@@ -1,9 +1,11 @@
 using FluentAssertions;
 using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Localization;
+using MyBudget.Domain.Categories;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Presentation;
 using MyBudget.Telegram.Tests.Fakes;
+using NSubstitute;
 
 namespace MyBudget.Telegram.Tests;
 
@@ -122,5 +124,30 @@ public sealed class ConversationRouterTests
         turn.NextState.Should().Be("settings");
         turn.Responses.Should().ContainSingle()
             .Which.Text.Should().Contain(harness.Messages.Get("es", MessageKeys.SettingsTitle));
+    }
+
+    [Theory]
+    [InlineData(CategoriesConversation.ConversationName, "menu")]
+    [InlineData(ExpensesConversation.ConversationName, "list")]
+    [InlineData(RecurringConversation.ConversationName, "list")]
+    [InlineData(SummaryConversation.ConversationName, "summary")]
+    [InlineData(StatisticsConversation.ConversationName, "statistics")]
+    [InlineData(CategoryDetailConversation.ConversationName, "choose")]
+    [InlineData(SettingsConversation.ConversationName, "settings")]
+    public async Task A_compact_expense_passes_through_a_screen_that_only_owns_buttons(
+        string conversation, string state)
+    {
+        var harness = TelegramHarness.Build();
+        var food = new BudgetCategory(harness.User.Id, "Comida", "🍔");
+        harness.CategoryService
+            .ListAsync(harness.User.Id, false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetCategory>>([food]));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness, state, conversation), "115509 carnes colanta", CancellationToken.None);
+
+        // The screen must not swallow the message: it becomes the expense flow.
+        turn.NextState.Should().Be("category");
+        harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation.Should().Be("expense");
     }
 }
