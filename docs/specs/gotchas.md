@@ -39,6 +39,10 @@ whenever a gotcha is learned or disproven.
 - Callback data is capped at 64 bytes; identify a row by position or term when the id does not
   fit. A menu tap outranks the active conversation, and some callbacks (Undo) arrive after the
   flow is gone, handled as global callbacks.
+- A conversation returns `null` from `HandleTextAsync` when free text is not its input; the
+  router then drops its state and parses the message as a compact expense. This is what stops a
+  report or a list left on screen from swallowing the next entry. Only the states that wait for
+  a typed value own their text.
 - A confirmation is claimed once with a conditional `UPDATE`, never re-read; the callback
   carries only the pending id. An empty listing must still carry the notices it was built with.
 

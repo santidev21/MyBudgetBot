@@ -240,6 +240,12 @@ Behaviours settled in Phase 4:
 - **A tap on the persistent menu aborts the active flow.** The router matches the menu before
   delegating text to a conversation. Delegating first would swallow a label such as
   `📊 Resumen` as flow input and, in the category flow, store it as a category name.
+- **A screen that only owns buttons lets a compact expense pass through.** A conversation
+  returns `null` from `HandleTextAsync` when the text is not its input (the summary, the
+  statistics, the lists, the category breakdown, the settings). The router then drops that
+  state and parses the message as a compact expense, so a report or a list left on screen can
+  never swallow the next `35.000 verduras` and re-render itself. Only the states that wait for
+  a typed value (amount, description, name, date, time zone) own their text.
 - **A draft that identifies a large value carries the position, not the value.** Telegram caps
   callback data at 64 bytes, so the alias screen lists remove buttons by index into a list held
   in the conversation payload and removes the keyword by term afterwards. No user text is

@@ -88,7 +88,7 @@ internal sealed class ExpenseConversation(
         }
     }
 
-    public async Task<ConversationTurn> HandleTextAsync(
+    public async Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
     {
         var payload = ExpensePayload.Parse(context.Conversation?.Payload);

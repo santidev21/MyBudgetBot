@@ -3,6 +3,7 @@ using MyBudget.Application.Abstractions.Telegram;
 using MyBudget.Application.Localization;
 using MyBudget.Application.Reporting;
 using MyBudget.Domain.Budgets;
+using MyBudget.Domain.Categories;
 using MyBudget.Telegram.Conversations;
 using MyBudget.Telegram.Tests.Fakes;
 using NSubstitute;
@@ -150,5 +151,39 @@ public sealed class SummaryConversationTests
             CancellationToken.None);
 
         turn.Responses[0].Text.Should().StartWith("📊 Resumen de agosto 2026");
+    }
+
+    [Fact]
+    public async Task A_compact_expense_typed_while_the_summary_is_on_screen_is_recorded()
+    {
+        var harness = TelegramHarness.Build();
+        var food = new BudgetCategory(harness.User.Id, "Comida", "🍔");
+        harness.CategoryService
+            .ListAsync(harness.User.Id, false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<BudgetCategory>>([food]));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness, new MonthPeriod(2026, 10), "summary"),
+            "115509 carnes colanta",
+            CancellationToken.None);
+
+        // The summary does not swallow the message: it becomes the expense flow.
+        turn.NextState.Should().Be("category");
+        harness.Conversations.SnapshotOf(harness.User.Id)!.Conversation.Should().Be("expense");
+        await harness.ReportService.DidNotReceive().GetMonthlySummaryAsync(
+            Arg.Any<Guid>(), Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Text_that_is_not_an_expense_falls_through_to_help()
+    {
+        var harness = TelegramHarness.Build();
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness, new MonthPeriod(2026, 10), "summary"), "hola", CancellationToken.None);
+
+        turn.Completed.Should().BeTrue();
+        turn.Responses[0].Text.Should().Be(harness.Messages.Get("es", MessageKeys.Help));
+        harness.Conversations.Count.Should().Be(0);
     }
 }

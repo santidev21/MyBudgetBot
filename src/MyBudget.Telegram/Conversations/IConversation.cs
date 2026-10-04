@@ -67,7 +67,12 @@ public interface IConversation
 
     Task<ConversationTurn> StartAsync(ConversationContext context, CancellationToken cancellationToken);
 
-    Task<ConversationTurn> HandleTextAsync(
+    /// <summary>
+    /// Handles a plain message. Returns <c>null</c> when the text is not this flow's input, so a
+    /// screen that only owns callbacks never swallows a free-text entry; the router then falls
+    /// through to the compact-expense parsing.
+    /// </summary>
+    Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken);
 
     Task<ConversationTurn> HandleCallbackAsync(
@@ -83,3 +88,4 @@ internal interface IHandoffConversation
     Task<ConversationTurn> StartWithAsync(
         ConversationContext context, string payload, CancellationToken cancellationToken);
 }
+

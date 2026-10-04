@@ -43,24 +43,24 @@ internal sealed class StartConversation(
         return Task.FromResult(turn);
     }
 
-    public Task<ConversationTurn> HandleTextAsync(
+    public async Task<ConversationTurn?> HandleTextAsync(
         ConversationContext context, IncomingText text, CancellationToken cancellationToken)
     {
         var language = context.Language;
 
         if (context.CurrentState != AwaitingCustomTimezone)
         {
-            return Task.FromResult(TimeZonePrompt(language, AwaitingTimezone));
+            return TimeZonePrompt(language, AwaitingTimezone);
         }
 
         var candidate = text.Text.Trim();
 
         if (TimeZoneInfo.TryFindSystemTimeZoneById(candidate, out _))
         {
-            return ConfirmAsync(context, candidate, cancellationToken);
+            return await ConfirmAsync(context, candidate, cancellationToken);
         }
 
-        return Task.FromResult(new ConversationTurn(
+        return new ConversationTurn(
         [
             BotResponse.Message(messages.Get(language, MessageKeys.OnboardingTimezoneCustomInvalid)),
             BotResponse.Message(messages.Get(language, MessageKeys.OnboardingTimezoneCustomPrompt)),
@@ -68,7 +68,7 @@ internal sealed class StartConversation(
         {
             NextState = AwaitingCustomTimezone,
             NextPayload = "{}",
-        });
+        };
     }
 
     public Task<ConversationTurn> HandleCallbackAsync(
