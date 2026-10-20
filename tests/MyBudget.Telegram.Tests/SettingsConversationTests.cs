@@ -69,6 +69,29 @@ public sealed class SettingsConversationTests
     }
 
     [Fact]
+    public async Task Toggling_the_summary_display_flips_the_preference_and_keeps_the_flow_open()
+    {
+        var harness = TelegramHarness.Build();
+
+        var initial = await harness.Router.RouteTextAsync(
+            ContextFor(harness), harness.Messages.Get("es", MessageKeys.MenuSettings), CancellationToken.None);
+
+        initial.Responses[0].Text.Should().Contain(
+            harness.Messages.Get("es", MessageKeys.SettingsSummaryStateSpent));
+
+        var turn = await harness.Router.RouteCallbackAsync(
+            ContextFor(harness, "settings"),
+            new IncomingCallback("cb", "settings:summary"),
+            CancellationToken.None);
+
+        harness.User.SummaryShowsRemaining.Should().BeTrue();
+        turn.NextState.Should().Be("settings");
+        turn.Responses.Should().ContainSingle()
+            .Which.Text.Should().Contain(
+                harness.Messages.Get("es", MessageKeys.SettingsSummaryStateRemaining));
+    }
+
+    [Fact]
     public async Task Deleting_data_asks_for_confirmation_before_erasing()
     {
         var harness = TelegramHarness.Build();

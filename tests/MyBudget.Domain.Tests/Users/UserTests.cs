@@ -82,6 +82,20 @@ public sealed class UserTests
         user.DailyReminderEnabled.Should().BeTrue();
     }
 
+    [Fact]
+    public void The_summary_shows_spent_by_default_and_can_switch_to_remaining()
+    {
+        var user = new User(1);
+
+        user.SummaryShowsRemaining.Should().BeFalse();
+
+        user.ChangeSummaryShowsRemaining(true);
+        user.SummaryShowsRemaining.Should().BeTrue();
+
+        user.ChangeSummaryShowsRemaining(false);
+        user.SummaryShowsRemaining.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

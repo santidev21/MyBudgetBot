@@ -62,6 +62,10 @@ public static class MessageKeys
     public const string SettingsReminderStateOff = "Settings.ReminderStateOff";
     public const string SettingsReminderEnable = "Settings.ReminderEnable";
     public const string SettingsReminderDisable = "Settings.ReminderDisable";
+    public const string SettingsSummaryStateSpent = "Settings.SummaryStateSpent";
+    public const string SettingsSummaryStateRemaining = "Settings.SummaryStateRemaining";
+    public const string SettingsSummaryShowRemaining = "Settings.SummaryShowRemaining";
+    public const string SettingsSummaryShowSpent = "Settings.SummaryShowSpent";
     public const string SettingsDeleteData = "Settings.DeleteData";
     public const string SettingsDeleteWarning = "Settings.DeleteWarning";
     public const string SettingsDeleteConfirm = "Settings.DeleteConfirm";
@@ -176,6 +180,7 @@ public static class MessageKeys
     public const string SummaryTotalSpent = "Summary.TotalSpent";
     public const string SummaryTotalBudget = "Summary.TotalBudget";
     public const string SummaryLine = "Summary.Line";
+    public const string SummaryLineRemaining = "Summary.LineRemaining";
     public const string SummaryLineUnbudgeted = "Summary.LineUnbudgeted";
     public const string SummaryEmpty = "Summary.Empty";
     public const string SummaryRemaining = "Summary.Remaining";
@@ -324,6 +329,10 @@ public static class MessageKeys
         SettingsReminderStateOff,
         SettingsReminderEnable,
         SettingsReminderDisable,
+        SettingsSummaryStateSpent,
+        SettingsSummaryStateRemaining,
+        SettingsSummaryShowRemaining,
+        SettingsSummaryShowSpent,
         SettingsDeleteData,
         SettingsDeleteWarning,
         SettingsDeleteConfirm,
@@ -431,6 +440,7 @@ public static class MessageKeys
         SummaryTotalSpent,
         SummaryTotalBudget,
         SummaryLine,
+        SummaryLineRemaining,
         SummaryLineUnbudgeted,
         SummaryEmpty,
         SummaryRemaining,

@@ -5,8 +5,8 @@ using MyBudget.Telegram.Presentation;
 namespace MyBudget.Telegram.Conversations;
 
 /// <summary>
-/// The user's own settings: the daily reminder switch and the irreversible erasure of everything
-/// they own.
+/// The user's own settings: the daily reminder switch, whether the summary's category lines
+/// show spent or remaining, and the irreversible erasure of everything they own.
 /// <para>
 /// Erasure deletes the user row itself, so the next message recreates a clean user. That is why
 /// the confirmation is explicit and the turn marks <see cref="ConversationTurn.UserRemoved"/>:
@@ -23,6 +23,7 @@ internal sealed class SettingsConversation(
 
     private const string State = "settings";
     private const string ReminderCallback = "settings:reminder";
+    private const string SummaryCallback = "settings:summary";
     private const string DeleteCallback = "settings:delete";
     private const string DeleteConfirmCallback = "settings:delete:confirm";
     private const string BackCallback = "settings:back";
@@ -45,6 +46,11 @@ internal sealed class SettingsConversation(
         {
             case ReminderCallback:
                 context.User.ChangeDailyReminder(!context.User.DailyReminderEnabled);
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+                return Build(context);
+
+            case SummaryCallback:
+                context.User.ChangeSummaryShowsRemaining(!context.User.SummaryShowsRemaining);
                 await unitOfWork.SaveChangesAsync(cancellationToken);
                 return Build(context);
 
@@ -75,6 +81,7 @@ internal sealed class SettingsConversation(
     {
         var language = context.Language;
         var reminderOn = context.User.DailyReminderEnabled;
+        var showsRemaining = context.User.SummaryShowsRemaining;
 
         var lines = new[]
         {
@@ -83,6 +90,11 @@ internal sealed class SettingsConversation(
             messages.Get(
                 language,
                 reminderOn ? MessageKeys.SettingsReminderStateOn : MessageKeys.SettingsReminderStateOff),
+            messages.Get(
+                language,
+                showsRemaining
+                    ? MessageKeys.SettingsSummaryStateRemaining
+                    : MessageKeys.SettingsSummaryStateSpent),
         };
 
         var reminderButton = new BotButton(
@@ -91,9 +103,18 @@ internal sealed class SettingsConversation(
                 reminderOn ? MessageKeys.SettingsReminderDisable : MessageKeys.SettingsReminderEnable),
             ReminderCallback);
 
+        var summaryButton = new BotButton(
+            messages.Get(
+                language,
+                showsRemaining
+                    ? MessageKeys.SettingsSummaryShowSpent
+                    : MessageKeys.SettingsSummaryShowRemaining),
+            SummaryCallback);
+
         var keyboard = BotKeyboard.Inline(
         [
             [reminderButton],
+            [summaryButton],
             [new BotButton(messages.Get(language, MessageKeys.SettingsDeleteData), DeleteCallback)],
         ]);
 

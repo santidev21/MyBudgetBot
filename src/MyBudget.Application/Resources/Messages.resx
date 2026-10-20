@@ -151,6 +151,18 @@
   <data name="Settings.ReminderDisable" xml:space="preserve">
     <value>🔕 Desactivar recordatorio</value>
   </data>
+  <data name="Settings.SummaryStateSpent" xml:space="preserve">
+    <value>📊 Categorías del resumen: gastado</value>
+  </data>
+  <data name="Settings.SummaryStateRemaining" xml:space="preserve">
+    <value>📊 Categorías del resumen: restante</value>
+  </data>
+  <data name="Settings.SummaryShowRemaining" xml:space="preserve">
+    <value>📊 Mostrar restante en categorías</value>
+  </data>
+  <data name="Settings.SummaryShowSpent" xml:space="preserve">
+    <value>📊 Mostrar gastado en categorías</value>
+  </data>
   <data name="Settings.DeleteData" xml:space="preserve">
     <value>🗑️ Borrar mis datos</value>
   </data>
@@ -477,6 +489,9 @@
   </data>
   <data name="Summary.Line" xml:space="preserve">
     <value>{0}: {1} de {2} {3} {4}</value>
+  </data>
+  <data name="Summary.LineRemaining" xml:space="preserve">
+    <value>{0}: quedan {1} de {2} {3} {4} usado</value>
   </data>
   <data name="Summary.LineUnbudgeted" xml:space="preserve">
     <value>{0}: {1} —</value>

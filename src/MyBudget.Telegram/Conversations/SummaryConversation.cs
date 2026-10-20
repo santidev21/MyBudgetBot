@@ -14,6 +14,9 @@ namespace MyBudget.Telegram.Conversations;
 /// The period is read from that month's allocation row, so September's report never shows
 /// October's budget. A category with spending but no allocation renders a dash rather than a
 /// division by zero, and overspending is shown, never blocked.
+/// <para>
+/// The user may choose whether the category lines show what was spent or what is left. The
+/// totals above them do not change, and the usage bar always measures spending.
 /// </para>
 /// </summary>
 internal sealed class SummaryConversation(
@@ -162,14 +165,25 @@ internal sealed class SummaryConversation(
             return messages.Get(language, MessageKeys.SummaryLineUnbudgeted, label, spent);
         }
 
-        return messages.Get(
-            language,
-            MessageKeys.SummaryLine,
-            label,
-            spent,
-            moneyFormatter.Format(line.Budget, currency),
-            Bar(line.Budget, line.Spent),
-            moneyFormatter.FormatPercentage(line.UsagePercentage ?? 0m));
+        var budget = moneyFormatter.Format(line.Budget, currency);
+        var bar = Bar(line.Budget, line.Spent);
+        var usage = moneyFormatter.FormatPercentage(line.UsagePercentage ?? 0m);
+
+        // What is left only makes sense while something is left. An overspent category keeps
+        // the spent line: "quedan -$30.000" would be noise rather than a report.
+        if (context.User.SummaryShowsRemaining && !line.IsOverspent)
+        {
+            return messages.Get(
+                language,
+                MessageKeys.SummaryLineRemaining,
+                label,
+                moneyFormatter.Format(line.Remaining, currency),
+                budget,
+                bar,
+                usage);
+        }
+
+        return messages.Get(language, MessageKeys.SummaryLine, label, spent, budget, bar, usage);
     }
 
     private static string Bar(long budget, long spent)

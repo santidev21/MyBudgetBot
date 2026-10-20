@@ -27,6 +27,10 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasColumnName("daily_reminder_enabled")
             .HasDefaultValue(true)
             .IsRequired();
+        builder.Property(user => user.SummaryShowsRemaining)
+            .HasColumnName("summary_shows_remaining")
+            .HasDefaultValue(false)
+            .IsRequired();
         builder.Property(user => user.CreatedAt).HasColumnName("created_at").HasColumnType("timestamptz").IsRequired();
         builder.Property(user => user.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamptz").IsRequired();
 

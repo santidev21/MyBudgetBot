@@ -103,6 +103,48 @@ public sealed class SummaryConversationTests
     }
 
     [Fact]
+    public async Task Choosing_remaining_changes_only_the_category_lines()
+    {
+        var harness = TelegramHarness.Build();
+        harness.User.ChangeSummaryShowsRemaining(true);
+        harness.ReportService
+            .GetMonthlySummaryAsync(harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(new MonthlySummary(new MonthPeriod(2026, 9), [Food, Fun]));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness), harness.Messages.Get("es", MessageKeys.MenuSummary), CancellationToken.None);
+
+        turn.Responses[0].Text.Should().Be(
+            """
+            📊 Resumen de septiembre 2026
+
+            Total gastado: $900.000
+            Presupuesto: $1.000.000 · Uso: 90 %
+            Te quedan $100.000 este mes.
+
+            🍔 Comida: quedan $300.000 de $1.000.000 ▓▓▓▓▓▓▓░░░ 70 % usado
+            🎬 Ocio: $200.000 —
+            """);
+    }
+
+    [Fact]
+    public async Task An_overspent_category_keeps_the_spent_wording_when_remaining_is_selected()
+    {
+        var harness = TelegramHarness.Build();
+        harness.User.ChangeSummaryShowsRemaining(true);
+        var overspent = new BudgetLine(Guid.NewGuid(), "Comida", "🍔", 100_000, 130_000);
+        harness.ReportService
+            .GetMonthlySummaryAsync(harness.User.Id, Arg.Any<MonthPeriod>(), Arg.Any<CancellationToken>())
+            .Returns(new MonthlySummary(new MonthPeriod(2026, 9), [overspent]));
+
+        var turn = await harness.Router.RouteTextAsync(
+            ContextFor(harness), harness.Messages.Get("es", MessageKeys.MenuSummary), CancellationToken.None);
+
+        turn.Responses[0].Text.Should().Contain("🍔 Comida: $130.000 de $100.000");
+        turn.Responses[0].Text.Should().NotContain("quedan");
+    }
+
+    [Fact]
     public async Task Overspending_is_shown_rather_than_blocked()
     {
         var harness = TelegramHarness.Build();
