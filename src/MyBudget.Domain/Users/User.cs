@@ -54,6 +54,13 @@ public sealed class User : Entity
     public bool DailyReminderEnabled { get; private set; } = true;
 
     /// <summary>
+    /// Whether the summary's category lines show what is left instead of what was spent. Off by
+    /// default: the amount spent is what the screen has always shown, and the totals above the
+    /// lines never change.
+    /// </summary>
+    public bool SummaryShowsRemaining { get; private set; }
+
+    /// <summary>
     /// Refreshes the profile snapshot from Telegram. Both values are display-only and
     /// must never be used as identity.
     /// </summary>
@@ -106,6 +113,11 @@ public sealed class User : Entity
     public void ChangeDailyReminder(bool enabled)
     {
         DailyReminderEnabled = enabled;
+    }
+
+    public void ChangeSummaryShowsRemaining(bool showRemaining)
+    {
+        SummaryShowsRemaining = showRemaining;
     }
 
     private static string? Truncate(string? value, int maxLength)

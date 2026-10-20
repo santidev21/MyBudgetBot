@@ -419,6 +419,12 @@ namespace MyBudget.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(5)")
                         .HasColumnName("language");
 
+                    b.Property<bool>("SummaryShowsRemaining")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("summary_shows_remaining");
+
                     b.Property<long>("TelegramUserId")
                         .HasColumnType("bigint")
                         .HasColumnName("telegram_user_id");
