@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /source
 
 # Restore is isolated in its own layer so it is only re-run when a project file
@@ -26,12 +26,14 @@ RUN dotnet publish src/MyBudget.Api/MyBudget.Api.csproj \
 # ---------------------------------------------------------------------------
 # Runtime
 #
-# Debian rather than Alpine on purpose:
+# Ubuntu (noble) rather than Alpine on purpose. The .NET 10 images no longer ship a
+# Debian slim variant, and noble is the default distro for the 10.0 tag:
 #   * full ICU, which es-CO monetary and date formatting depends on;
 #   * tzdata, which TimeZoneInfo needs to resolve America/Bogota at runtime.
-# Alpine needs both bolted on and every miss is a runtime formatting bug.
+# Alpine needs both bolted on and every miss is a runtime formatting bug. The tag is explicit
+# so the distro never changes underneath the image without a reviewed diff.
 # ---------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
@@ -42,7 +44,7 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=build /app .
 
-ENV ASPNETCORE_URLS=http://+:8080 \
+ENV ASPNETCORE_HTTP_PORTS=8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
     DOTNET_RUNNING_IN_CONTAINER=true

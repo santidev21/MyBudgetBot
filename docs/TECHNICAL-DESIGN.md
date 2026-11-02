@@ -601,7 +601,7 @@ Telegram ──HTTPS──▶ vps-gateway (nginx :443)
   password there later has no effect; rotate with `ALTER ROLE`.
 - No host ports in production. Local development publishes `127.0.0.1:5432` and
   `127.0.0.1:8091` only.
-- The runtime image is Debian, not Alpine, because `es-CO` formatting needs ICU and
+- The runtime image is Ubuntu (`aspnet:10.0-noble`), not Alpine, because `es-CO` formatting needs ICU and
   `TimeZoneInfo` needs tzdata.
 
 Gateway steps for a new deployment: create the DNS record, add `mybudget-net` to the gateway
@@ -737,7 +737,7 @@ The implementation lives in `scripts/`, the runbook in [`BACKUPS.md`](BACKUPS.md
 | Backup exists but cannot be restored | High | Automated weekly restore into a scratch database with sanity checks and an alert on failure |
 | Secret leakage | High | Environment-only secrets, redaction, CI scans, ignore files |
 | EF Core mis-models aggregate-created records | Medium | Store-generated keys for child records; documented in `docs/specs/gotchas.md`; covered by tests |
-| Globalization drift in `es-CO` output | Medium | Explicit `NumberFormatInfo`; Debian image with full ICU |
+| Globalization drift in `es-CO` output | Medium | Explicit `NumberFormatInfo`; Ubuntu image with full ICU |
 | Time-zone regressions in month boundaries | High | `ExpenseDate` is a calendar date; boundary tests; no hardcoded offsets |
 | Scope creep into phase-9 features | High (schedule) | Phase gates; nothing starts without a real need |
 | Renaming a category changes old report labels | Low | Accepted deliberately: snapshotting names would create a second source of truth |
@@ -760,7 +760,7 @@ The implementation lives in `scripts/`, the runbook in [`BACKUPS.md`](BACKUPS.md
 | 12 | Commands as the primary interface | Persistent reply keyboard, keeping the text field free for compact entry. |
 | 13 | Markdown formatting | HTML parse mode, with values escaped by the presenter. |
 | 14 | Migrations at startup | One-shot migrator container; the app never migrates in production. |
-| 15 | Alpine runtime image | Debian, for ICU and tzdata. |
+| 15 | Alpine runtime image | Ubuntu (`10.0-noble`; .NET 10 has no Debian slim image), for ICU and tzdata. |
 | 16 | Rich DDD aggregates | Pragmatic domain plus SQL read models; no aggregate loading just to sum expenses. |
 | 17 | Callback data | Token-only payloads, drafts in the database, consumed once. |
 | 18 | Uncategorised expenses | `category_id` is required, with a seeded, editable `📦 Otros` as the fallback. |
