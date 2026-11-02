@@ -13,7 +13,7 @@ internal readonly record struct Rgb(byte R, byte G, byte B)
 /// A tiny RGB raster surface.
 /// <para>
 /// Hand-rolled instead of pulling an imaging library: the charts are rectangles and digits,
-/// and a dependency-free renderer works identically in the Debian runtime image, in tests and
+/// and a dependency-free renderer works identically in the Ubuntu runtime image, in tests and
 /// on a developer laptop, with no native libraries or system fonts to install.
 /// </para>
 /// </summary>

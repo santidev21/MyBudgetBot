@@ -1,6 +1,6 @@
 # MyBudget-bot
 
-![.NET](https://img.shields.io/badge/.NET-8-purple)
+![.NET](https://img.shields.io/badge/.NET-10-purple)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
 ![Telegram](https://img.shields.io/badge/Telegram-Bot-26A5E4)
 ![License](https://img.shields.io/badge/license-private-lightgrey)
@@ -9,7 +9,7 @@
 `35.000 verduras` and it is registered — and reporting reliable, because money is exact, dates
 are calendar dates in the user's time zone, and history cannot be rewritten.
 
-Built as a production-quality .NET 8 modular monolith: clean layering enforced by tests, a
+Built as a production-quality .NET 10 modular monolith: clean layering enforced by tests, a
 relational model with database-enforced integrity, a deterministic Colombian money parser, and a
 deployment that matches the rest of the `vps-gateway` estate.
 
@@ -66,7 +66,7 @@ deployment that matches the rest of the `vps-gateway` estate.
   fails the build if a key is missing or blank.
 - Structured JSON logging, liveness/readiness/health endpoints, and startup configuration
   validation.
-- **801 tests**: domain units, money and date corpora with property tests, localization guards,
+- **864 tests**: domain units, money and date corpora with property tests, localization guards,
   Telegram pipeline and conversation tests, matcher corpus, architecture tests, migration
   guardrails, and PostgreSQL integration tests.
 
@@ -76,9 +76,9 @@ deployment that matches the rest of the `vps-gateway` estate.
 
 | Layer | Technology |
 |---|---|
-| Runtime | C# 12, .NET 8 |
+| Runtime | C# 14, .NET 10 |
 | Host | ASP.NET Core minimal API |
-| Persistence | EF Core 8 + Npgsql, PostgreSQL 16 |
+| Persistence | EF Core 10 + Npgsql, PostgreSQL 16 |
 | Telegram | `Telegram.Bot` (webhooks in production, long polling locally) |
 | Logging | Serilog (compact JSON in production) |
 | Testing | xUnit, FluentAssertions, NSubstitute, Testcontainers, NetArchTest, FsCheck |
@@ -106,7 +106,7 @@ Telegram ──HTTPS──▶ vps-gateway (nginx :443)
 |---|---|
 | `mybudget-db` | PostgreSQL 16 |
 | `mybudget-migrator` | Applies EF Core migrations then exits (one-shot) |
-| `mybudget` | .NET 8 app: webhook, schedulers, health (internal, no published ports) |
+| `mybudget` | .NET 10 app: webhook, schedulers, health (internal, no published ports) |
 
 - `mybudget-net` (external, shared with the gateway): `mybudget`.
 - `mybudget-internal-net` (internal): `mybudget` + `mybudget-db`. The database is **never** on
@@ -162,7 +162,7 @@ MyBudget-bot/
 
 ## Local Development
 
-Requirements: .NET 8 SDK and Docker.
+Requirements: .NET 10 SDK (pinned in `global.json`) and Docker.
 
 ### 1. Environment setup
 

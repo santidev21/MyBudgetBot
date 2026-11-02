@@ -25,7 +25,7 @@ whenever a gotcha is learned or disproven.
 - Hosted services are singletons; resolve scoped services from a scope per iteration. Only a
   test that builds the real host catches a mistake (`ApiTelegramWiringTests`).
 - `Options.Create` is ambiguous inside files importing `MyBudget.Telegram.Options`; qualify it.
-- The runtime image is Debian for ICU and tzdata; `external: false` in the local compose overlay
+- The runtime image is Ubuntu (`10.0-noble`) for ICU and tzdata; `external: false` in the local compose overlay
   is required; both `app` and `migrator` keep `image: mybudget-app`.
 - Docker cannot publish a host port for a container whose only network is internal.
 
