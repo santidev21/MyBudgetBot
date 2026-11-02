@@ -20,7 +20,7 @@ MyBudget.Api            host: webhook endpoint, health, Serilog, DI, --migrate
 MyBudget.Telegram       presentation: dispatch, conversations, rendering
 MyBudget.Application    use cases and policies: parsing, matching, summaries
 MyBudget.Domain         entities, invariants, pure budget arithmetic
-MyBudget.Infrastructure EF Core 8 + Npgsql, configurations, migrations, repositories
+MyBudget.Infrastructure EF Core 10 + Npgsql, configurations, migrations, repositories
         |
         v
 PostgreSQL 16
@@ -663,7 +663,7 @@ conflict prompt, architecture and repository contract tests, the summary, statis
 date-range history messages (asserted verbatim), the period queries against real PostgreSQL
 (grouped sums, user isolation, the range boundary and a full keyset walk), the per-user inbound
 throttle (budget, sliding window, one notice per window, independent budgets) and the outbound
-429 retry policy (fallbacks and the cap). 801 tests, all green.
+429 retry policy (fallbacks and the cap). 864 tests, all green.
 
 Recurring expenses added: the domain calendar arithmetic (month-end clamping, catch-up,
 inclusive end dates and the forward-only generation marker), rule persistence with the
